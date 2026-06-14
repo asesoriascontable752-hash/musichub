@@ -10,9 +10,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.googleusercontent.com' },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
-  },
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
 }
 
 module.exports = nextConfig
