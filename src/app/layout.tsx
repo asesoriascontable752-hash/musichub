@@ -3,6 +3,8 @@ import './globals.css'
 import { SessionProvider } from '@/components/SessionProvider'
 import { PlayerProvider } from '@/contexts/PlayerContext'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'MusicHub - Tu música, en todas partes',
   description: 'Reproduce música de YouTube, archivos locales y más con letras incluidas',
