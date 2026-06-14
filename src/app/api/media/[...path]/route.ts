@@ -6,14 +6,15 @@ import path from 'path'
 import { lookup } from 'mime-types'
 
 // Serves files from UPLOAD_DIR when it is outside /public (e.g. Railway volume)
-export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path: pathSegments } = await params
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return new NextResponse('No autorizado', { status: 401 })
 
   const baseDir = process.env.UPLOAD_DIR
   if (!baseDir) return new NextResponse('Not configured', { status: 404 })
 
-  const segments = params.path
+  const segments = pathSegments
   // Security: first segment must be the requesting user's ID
   if (segments[0] !== session.user.id) return new NextResponse('Prohibido', { status: 403 })
 
