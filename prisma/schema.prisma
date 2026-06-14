@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String          @default("user") // "user" | "admin"
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  songs         Song[]
+  playlists     Playlist[]
+  accounts      Account[]
+  sessions      Session[]
+  permission    UserPermission?
+  labels        Label[]
+}
+
+model UserPermission {
+  userId        String  @id
+  canAddSongs   Boolean @default(false)
+  canUpload     Boolean @default(false)
+  canEditLyrics Boolean @default(false)
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Label {
+  id        String      @id @default(cuid())
+  name      String
+  color     String      @default("#1DB954")
+  icon      String      @default("tag") // "heart" | "tag" | "mic" | "star" | "bookmark"
+  createdAt DateTime    @default(now())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs     SongLabel[]
+}
+
+model SongLabel {
+  songId  String
+  labelId String
+  song    Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+  label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([songId, labelId])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Song {
+  id          String        @id @default(cuid())
+  title       String
+  artist      String?
+  album       String?
+  duration    Float?
+  coverUrl    String?
+  sourceType  String        @default("local") // 'youtube', 'spotify', 'local', 'url'
+  sourceUrl   String?
+  filePath    String?
+  lyrics      String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlists   PlaylistSong[]
+  labels      SongLabel[]
+}
+
+model Playlist {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  coverUrl    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs       PlaylistSong[]
+}
+
+model PlaylistSong {
+  id         String   @id @default(cuid())
+  order      Int      @default(0)
+  playlistId String
+  songId     String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, songId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
