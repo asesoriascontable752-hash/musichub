@@ -1,27 +1,34 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Music, Youtube, FileAudio, Link2, Filter } from 'lucide-react'
+import { Music, Youtube, FileAudio, Link2 } from 'lucide-react'
 import { Song } from '@/types'
 import { usePlayer } from '@/contexts/PlayerContext'
 import SongCard from '@/components/Library/SongCard'
 
 type Filter = 'all' | 'youtube' | 'local' | 'url'
+interface Label { id: string; name: string; color: string; songs: { songId: string }[] }
 
 export default function LibraryPage() {
   const [songs, setSongs] = useState<Song[]>([])
+  const [labels, setLabels] = useState<Label[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
   const { dispatch } = usePlayer()
 
+  function refreshLabels() {
+    fetch('/api/labels').then(r => r.json()).then(d => setLabels(d.labels || []))
+  }
+
   useEffect(() => {
-    fetch('/api/songs')
-      .then(r => r.json())
-      .then(d => {
-        setSongs(d.songs || [])
-        if (d.songs?.length > 0) dispatch({ type: 'SET_QUEUE', payload: d.songs })
-      })
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch('/api/songs').then(r => r.json()),
+      fetch('/api/labels').then(r => r.json()),
+    ]).then(([songsData, labelsData]) => {
+      setSongs(songsData.songs || [])
+      setLabels(labelsData.labels || [])
+      if (songsData.songs?.length > 0) dispatch({ type: 'SET_QUEUE', payload: songsData.songs })
+    }).finally(() => setLoading(false))
   }, [dispatch])
 
   useEffect(() => {
@@ -29,8 +36,13 @@ export default function LibraryPage() {
       const song = (e as CustomEvent).detail as Song
       setSongs(prev => prev.find(s => s.id === song.id) ? prev : [song, ...prev])
     }
+    function onLabelChanged() { refreshLabels() }
     window.addEventListener('song-added', onSongAdded)
-    return () => window.removeEventListener('song-added', onSongAdded)
+    window.addEventListener('label-changed', onLabelChanged)
+    return () => {
+      window.removeEventListener('song-added', onSongAdded)
+      window.removeEventListener('label-changed', onLabelChanged)
+    }
   }, [])
 
   const filtered = filter === 'all' ? songs : songs.filter(s => s.sourceType === filter)
@@ -78,7 +90,13 @@ export default function LibraryPage() {
             <div key={song.id} className="flex items-center gap-3">
               <span className="text-xs text-spotify-light-gray w-6 text-center flex-shrink-0">{i + 1}</span>
               <div className="flex-1">
-                <SongCard song={song} songs={filtered} onDelete={(id) => setSongs(prev => prev.filter(s => s.id !== id))} />
+                <SongCard
+                song={song}
+                songs={filtered}
+                labels={labels}
+                onDelete={(id) => setSongs(prev => prev.filter(s => s.id !== id))}
+                onLabelChange={refreshLabels}
+              />
               </div>
             </div>
           ))}
