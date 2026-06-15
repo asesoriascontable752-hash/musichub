@@ -193,15 +193,6 @@ interface ProviderState { saved: boolean; testing: boolean; saving: boolean; res
 
 const SIMPLE_PROVIDERS = [
   {
-    id: 'gemini', emoji: '✨', label: 'Gemini (Google)',
-    desc: 'Busca letras de canciones gratis.',
-    howto: 'Ve a aistudio.google.com → crea un proyecto → "Get API Key"',
-    link: 'https://aistudio.google.com/app/apikey',
-    fieldKey: 'ai_gemini_key', placeholder: 'AIzaSy...',
-    color: 'border-blue-500/30 bg-blue-500/5',
-    badge: 'text-blue-400',
-  },
-  {
     id: 'claude', emoji: '🤖', label: 'Claude (Anthropic)',
     desc: 'IA para buscar letras cuando otros fallan.',
     howto: 'Ve a console.anthropic.com → "API Keys" → "Create Key"',
@@ -233,6 +224,150 @@ const SIMPLE_PROVIDERS = [
     badge: 'text-purple-400',
   },
 ]
+
+function GeminiCard({ values, setValues }: { values: Record<string, string>; setValues: React.Dispatch<React.SetStateAction<Record<string, string>>> }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const [loadingModels, setLoadingModels] = useState(false)
+  const [models, setModels] = useState<string[]>([])
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testing, setTesting] = useState(false)
+
+  async function save() {
+    setSaving(true); setSaved(false)
+    await fetch('/api/admin/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_gemini_key: values['ai_gemini_key'] ?? '', ai_gemini_model: values['ai_gemini_model'] ?? '' }),
+    })
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  async function listModels() {
+    setLoadingModels(true); setModels([]); setTestResult(null)
+    const res = await fetch('/api/admin/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'gemini-models' }),
+    })
+    const data = await res.json()
+    setLoadingModels(false)
+    if (data.ok) setModels(data.models || [])
+    else setTestResult({ ok: false, msg: data.error })
+  }
+
+  async function test() {
+    setTesting(true); setTestResult(null)
+    const res = await fetch('/api/admin/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'gemini' }),
+    })
+    const data = await res.json()
+    setTesting(false)
+    setTestResult({ ok: data.ok, msg: data.ok ? data.msg : data.error })
+  }
+
+  const hasKey = (values['ai_gemini_key'] ?? '').length > 3
+
+  return (
+    <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">✨</span>
+          <div>
+            <h3 className="font-bold text-base text-blue-400">Gemini (Google)</h3>
+            <p className="text-xs text-white/50 mt-0.5">Busca letras de canciones con IA de Google.</p>
+          </div>
+        </div>
+        {hasKey && !testResult && (
+          <span className="flex items-center gap-1 text-xs text-spotify-green shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Clave guardada
+          </span>
+        )}
+      </div>
+
+      <div className="mb-3 p-3 rounded-lg bg-black/20 border border-white/5 text-xs text-white/50">
+        <span className="text-white/70 font-medium">Dónde obtener la clave: </span>
+        Ve a aistudio.google.com → crea un proyecto → &quot;Get API Key&quot;
+        {' — '}
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-spotify-green underline underline-offset-2 hover:text-white">
+          Abrir sitio →
+        </a>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        <div>
+          <label className="block text-xs text-white/50 mb-1">API Key de Google AI Studio</label>
+          <div className="relative">
+            <input
+              type={visible ? 'text' : 'password'}
+              value={values['ai_gemini_key'] ?? ''}
+              onChange={e => setValues(p => ({ ...p, ai_gemini_key: e.target.value }))}
+              placeholder="AIzaSy..."
+              className="w-full bg-black/30 text-white text-sm rounded-lg px-4 py-2.5 border border-white/10 focus:border-white/30 focus:outline-none pr-10 placeholder-white/20 font-mono"
+            />
+            <button type="button" onClick={() => setVisible(v => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
+              {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-white/50 mb-1">Modelo a usar</label>
+          <input
+            value={values['ai_gemini_model'] ?? ''}
+            onChange={e => setValues(p => ({ ...p, ai_gemini_model: e.target.value }))}
+            placeholder="gemini-1.5-flash"
+            className="w-full bg-black/30 text-white text-sm rounded-lg px-4 py-2.5 border border-white/10 focus:border-white/30 focus:outline-none placeholder-white/20 font-mono"
+          />
+        </div>
+      </div>
+
+      {/* Model chips */}
+      {models.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-white/50 mb-2">Modelos disponibles — haz clic para seleccionar:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {models.map(m => (
+              <button key={m} onClick={() => setValues(p => ({ ...p, ai_gemini_model: m }))}
+                className={`px-2.5 py-1 rounded-full text-xs font-mono transition-colors ${values['ai_gemini_model'] === m ? 'bg-blue-400 text-black font-bold' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 bg-white text-black font-bold rounded-full text-sm hover:bg-white/90 active:scale-95 transition-all disabled:opacity-50">
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+
+        <button onClick={listModels} disabled={loadingModels || !hasKey}
+          className="flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white font-semibold rounded-full text-sm hover:bg-white/20 active:scale-95 transition-all disabled:opacity-40">
+          {loadingModels ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+          {loadingModels ? 'Buscando…' : 'Ver modelos disponibles'}
+        </button>
+
+        <button onClick={test} disabled={testing || !hasKey}
+          className="flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white font-semibold rounded-full text-sm hover:bg-white/20 active:scale-95 transition-all disabled:opacity-40">
+          {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+          {testing ? 'Probando…' : 'Probar'}
+        </button>
+
+        {saved && <span className="flex items-center gap-1 text-spotify-green text-sm"><CheckCircle2 className="w-4 h-4" /> Guardado</span>}
+        {testResult && (
+          <span className={`flex items-center gap-1 text-sm ${testResult.ok ? 'text-spotify-green' : 'text-red-400'}`}>
+            {testResult.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {testResult.msg}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function OllamaCard({ values, setValues }: { values: Record<string, string>; setValues: React.Dispatch<React.SetStateAction<Record<string, string>>> }) {
   const [saving, setSaving] = useState(false)
@@ -515,6 +650,7 @@ function AISettingsTab() {
         )
       })}
 
+      <GeminiCard values={values} setValues={setValues} />
       <OllamaCard values={values} setValues={setValues} />
     </div>
   )

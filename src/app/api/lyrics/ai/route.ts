@@ -39,13 +39,14 @@ async function fromClaude(artist: string | null | undefined, title: string): Pro
   }
 }
 
-// ── Gemini 1.5 Flash ──────────────────────────────────────────────────────────
+// ── Gemini ────────────────────────────────────────────────────────────────────
 async function fromGemini(artist: string | null | undefined, title: string): Promise<string | null> {
   const key = await getKey('ai_gemini_key', 'GEMINI_API_KEY')
   if (!key) return null
+  const model = await getKey('ai_gemini_model', 'GEMINI_MODEL') || 'gemini-1.5-flash'
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

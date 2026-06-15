@@ -6,6 +6,7 @@ import { getSetting, setSetting, getUserRole } from '@/lib/settings'
 const ALL_KEYS = [
   'ai_anthropic_key',
   'ai_gemini_key',
+  'ai_gemini_model',
   'ai_perplexity_key',
   'ai_ollama_host',
   'ai_ollama_model',

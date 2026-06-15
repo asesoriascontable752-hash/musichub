@@ -13,9 +13,25 @@ export async function POST(req: NextRequest) {
     if (provider === 'gemini') {
       const key = await getSetting('ai_gemini_key')
       if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`)
+      const model = (await getSetting('ai_gemini_model')) || 'gemini-1.5-flash'
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Hola' }] }] }),
+      })
       if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
-      return NextResponse.json({ ok: true, msg: 'Gemini responde correctamente ✓' })
+      return NextResponse.json({ ok: true, msg: `Gemini (${model}) responde correctamente ✓` })
+    }
+
+    if (provider === 'gemini-models') {
+      const key = await getSetting('ai_gemini_key')
+      if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=100`)
+      if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
+      const data = await res.json()
+      const models: string[] = (data.models || [])
+        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m: any) => (m.name as string).replace('models/', ''))
+      return NextResponse.json({ ok: true, models })
     }
 
     if (provider === 'claude') {
