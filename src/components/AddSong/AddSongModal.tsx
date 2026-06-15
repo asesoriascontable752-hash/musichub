@@ -133,22 +133,33 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
   }
 
   async function handleFiles(fileList: FileList) {
-    const AUDIO_VIDEO = /^(audio|video)\//
-    const files = Array.from(fileList).filter(f => AUDIO_VIDEO.test(f.type))
+    const AUDIO_EXT = /\.(mp3|wav|flac|ogg|opus|m4a|aac|wma|aiff|aif|alac|ape|wv|mid|midi|mp4|avi|mkv|mov|webm|m4v|3gp|ts)$/i
+    const files = Array.from(fileList).filter(f =>
+      /^(audio|video)\//.test(f.type) || AUDIO_EXT.test(f.name)
+    )
     if (!files.length) { setError('No se encontraron archivos de audio o video'); return }
 
     setError('')
     setLoading(true)
     setUploadDone(0)
+    setUploadProgress({ current: 0, total: files.length, name: '' })
 
-    for (let i = 0; i < files.length; i++) {
-      setUploadProgress({ current: i + 1, total: files.length, name: files[i].name })
-      const song = await uploadSingleFile(files[i])
+    const CONCURRENCY = 3
+    let completed = 0
+
+    async function uploadOne(file: File) {
+      const song = await uploadSingleFile(file)
+      completed++
+      setUploadProgress({ current: completed, total: files.length, name: file.name })
       if (song) {
         window.dispatchEvent(new CustomEvent('song-added', { detail: song }))
         onAdded(song)
-        setUploadDone(i + 1)
+        setUploadDone(c => c + 1)
       }
+    }
+
+    for (let i = 0; i < files.length; i += CONCURRENCY) {
+      await Promise.all(files.slice(i, i + CONCURRENCY).map(uploadOne))
     }
 
     setLoading(false)
@@ -251,9 +262,11 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
                     <p className="text-white font-medium text-sm">
-                      Subiendo {uploadProgress.current} de {uploadProgress.total}
+                      Completadas {uploadProgress.current} de {uploadProgress.total}
                     </p>
-                    <p className="text-spotify-light-gray text-xs truncate max-w-[240px]">{uploadProgress.name}</p>
+                    <p className="text-spotify-light-gray text-xs truncate max-w-[240px]">
+                      {uploadProgress.current < uploadProgress.total ? `Subiendo en paralelo…` : 'Finalizando…'}
+                    </p>
                     {/* Progress bar */}
                     <div className="w-full bg-white/10 rounded-full h-1.5 mt-1">
                       <div
@@ -312,7 +325,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
               <input
                 ref={folderRef}
                 type="file"
-                accept="audio/*,video/*"
                 // @ts-ignore — non-standard but widely supported
                 webkitdirectory=""
                 multiple
