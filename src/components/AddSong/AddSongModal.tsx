@@ -108,10 +108,10 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
     onClose()
   }
 
-  async function uploadSingleFile(file: File): Promise<Song | null> {
+  async function uploadSingleFile(file: File): Promise<{ song: Song | null; error?: string }> {
     let fileUrl: string | null = null
 
-    // Try direct-to-Supabase upload (bypasses Vercel 4.5MB body limit)
+    // Direct-to-Supabase upload (bypasses Vercel 4.5MB body limit)
     const signRes = await fetch('/api/upload/sign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,20 +125,31 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
         headers: { 'Content-Type': file.type || 'application/octet-stream' },
         body: file,
       })
-      if (putRes.ok) fileUrl = publicUrl
-    }
-
-    // Fallback: send through server (local dev, no Supabase)
-    if (!fileUrl) {
+      if (putRes.ok) {
+        fileUrl = publicUrl
+      } else {
+        const putText = await putRes.text().catch(() => '')
+        return { song: null, error: `Supabase ${putRes.status}: ${putText.slice(0, 120)}` }
+      }
+    } else {
+      const signData = await signRes.json().catch(() => ({ error: 'sin respuesta' }))
+      // 501 = Supabase not configured → fall back to server upload
+      if (signRes.status !== 501) {
+        return { song: null, error: `Firma ${signRes.status}: ${signData.error ?? ''}` }
+      }
+      // Fallback: server-side upload (local dev only)
       const formData = new FormData()
       formData.append('file', file)
       const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
-      if (!uploadRes.ok) return null
+      if (!uploadRes.ok) {
+        const d = await uploadRes.json().catch(() => ({ error: `HTTP ${uploadRes.status}` }))
+        return { song: null, error: d.error ?? `Upload ${uploadRes.status}` }
+      }
       const uploadData = await uploadRes.json()
       fileUrl = uploadData.url
     }
 
-    if (!fileUrl) return null
+    if (!fileUrl) return { song: null, error: 'No se obtuvo URL del archivo' }
 
     const songName = file.name.replace(/\.[^.]+$/, '')
     const res = await fetch('/api/songs', {
@@ -147,9 +158,12 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
       body: JSON.stringify({ title: songName, sourceType: 'local', filePath: fileUrl }),
     })
 
-    if (!res.ok) return null
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      return { song: null, error: d.error ?? `Guardar ${res.status}` }
+    }
     const data = await res.json()
-    return data.song ?? null
+    return { song: data.song ?? null }
   }
 
   async function handleFiles(fileList: FileList) {
@@ -166,15 +180,18 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
 
     const CONCURRENCY = 3
     let completed = 0
+    let lastErr = ''
 
     async function uploadOne(file: File) {
-      const song = await uploadSingleFile(file)
+      const result = await uploadSingleFile(file)
       completed++
       setUploadProgress({ current: completed, total: files.length, name: file.name })
-      if (song) {
-        window.dispatchEvent(new CustomEvent('song-added', { detail: song }))
-        onAdded(song)
+      if (result.song) {
+        window.dispatchEvent(new CustomEvent('song-added', { detail: result.song }))
+        onAdded(result.song)
         setUploadDone(c => c + 1)
+      } else if (result.error) {
+        lastErr = result.error
       }
     }
 
@@ -184,7 +201,12 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
 
     setLoading(false)
     setUploadProgress(null)
-    onClose()
+
+    if (lastErr) {
+      setError(lastErr)
+    } else {
+      onClose()
+    }
   }
 
   const noPerm = perms !== null && (
