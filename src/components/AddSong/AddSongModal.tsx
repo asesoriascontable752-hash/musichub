@@ -25,7 +25,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
   const folderRef = useRef<HTMLInputElement>(null)
 
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be')
-  const isSpotify = url.includes('spotify.com')
 
   useEffect(() => {
     fetch('/api/permissions/me').then(r => r.json()).then(d => setPerms(d.permissions ?? null))
@@ -37,7 +36,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
     const timer = setTimeout(() => {
       lastAutoFetched.current = url
       if (isYouTube) fetchYouTubeInfo()
-      else if (isSpotify) fetchSpotifyInfo()
     }, 600)
     return () => clearTimeout(timer)
   }, [url])
@@ -54,21 +52,8 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
     setFetchingInfo(false)
   }
 
-  async function fetchSpotifyInfo() {
-    if (!isSpotify || !url) return
-    setFetchingInfo(true)
-    try {
-      const res = await fetch(`/api/spotify-info?url=${encodeURIComponent(url)}`)
-      const data = await res.json()
-      if (data.title) setTitle(data.title)
-      if (data.artist) setArtist(data.artist)
-    } catch {}
-    setFetchingInfo(false)
-  }
-
   async function handleUrlBlur() {
     if (isYouTube) fetchYouTubeInfo()
-    else if (isSpotify) fetchSpotifyInfo()
   }
 
   async function handleUrlSubmit(e: React.FormEvent) {
@@ -84,13 +69,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
       sourceType = 'youtube'
       const idMatch = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/)
       if (idMatch) coverUrl = `https://img.youtube.com/vi/${idMatch[1]}/hqdefault.jpg`
-    } else if (isSpotify) {
-      sourceType = 'spotify'
-      try {
-        const res = await fetch(`/api/spotify-info?url=${encodeURIComponent(url)}`)
-        const data = await res.json()
-        if (data.coverUrl) coverUrl = data.coverUrl
-      } catch {}
     }
 
     const res = await fetch('/api/songs', {
@@ -249,22 +227,20 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     {isYouTube && <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400" />}
-                    {isSpotify && <Music className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-spotify-green" />}
-                    {!isYouTube && !isSpotify && <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-spotify-light-gray" />}
+                    {!isYouTube && <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-spotify-light-gray" />}
                     <input type="url" value={url} onChange={e => setUrl(e.target.value)} onBlur={handleUrlBlur}
-                      placeholder="https://youtube.com/watch?v=... o https://open.spotify.com/track/..."
+                      placeholder="https://youtube.com/watch?v=..."
                       className="w-full pl-10 pr-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40" />
                   </div>
-                  {(isYouTube || isSpotify) && (
-                    <button type="button" onClick={isSpotify ? fetchSpotifyInfo : fetchYouTubeInfo}
+                  {isYouTube && (
+                    <button type="button" onClick={fetchYouTubeInfo}
                       disabled={fetchingInfo}
                       className="px-3 py-2.5 bg-spotify-gray rounded-lg border border-white/10 hover:border-white/20 text-spotify-light-gray hover:text-white transition-colors">
                       {fetchingInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     </button>
                   )}
                 </div>
-                {isSpotify && <p className="text-xs text-spotify-green mt-1">✓ Spotify — se abrirá el reproductor oficial de Spotify integrado</p>}
-                {!isYouTube && !isSpotify && <p className="text-xs text-spotify-light-gray mt-1">YouTube, Spotify, SoundCloud, Twitch, y más</p>}
+                {!isYouTube && <p className="text-xs text-spotify-light-gray mt-1">YouTube u otras URLs de audio</p>}
               </div>
 
               <div>

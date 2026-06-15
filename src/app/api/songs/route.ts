@@ -11,7 +11,7 @@ const songSchema = z.object({
   album: z.string().optional(),
   duration: z.number().optional(),
   coverUrl: z.string().url().optional().nullable(),
-  sourceType: z.enum(['youtube', 'spotify', 'local', 'url']),
+  sourceType: z.enum(['youtube', 'local', 'url']),
   sourceUrl: z.string().optional().nullable(),
   filePath: z.string().optional().nullable(),
   lyrics: z.string().optional().nullable(),
