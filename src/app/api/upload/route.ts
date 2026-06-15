@@ -40,7 +40,38 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // ── Cloudinary (production) ──────────────────────────────────────────────
+    // ── Supabase Storage (production) ────────────────────────────────────────
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_KEY,
+        { auth: { persistSession: false } }
+      )
+
+      const ext      = path.extname(file.name) || (isVideo ? '.mp4' : '.mp3')
+      const fileName = `${session!.user!.id}/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
+      const mimeType = file.type || (isVideo ? 'video/mp4' : 'audio/mpeg')
+
+      const { error } = await supabase.storage
+        .from('musichub')
+        .upload(fileName, buffer, { contentType: mimeType, upsert: false })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('musichub')
+        .getPublicUrl(fileName)
+
+      return NextResponse.json({
+        url:  publicUrl,
+        name: file.name,
+        type: isVideo ? 'video' : 'audio',
+        size: file.size,
+      })
+    }
+
+    // ── Cloudinary (fallback) ────────────────────────────────────────────────
     if (process.env.CLOUDINARY_CLOUD_NAME) {
       const { v2: cloudinary } = await import('cloudinary')
       cloudinary.config({
@@ -51,11 +82,7 @@ export async function POST(req: NextRequest) {
 
       const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'video', // Cloudinary uses 'video' for audio too
-            folder: `musichub/${session!.user!.id}`,
-            public_id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          },
+          { resource_type: 'video', folder: `musichub/${session!.user!.id}` },
           (error, result) => {
             if (error || !result) reject(error ?? new Error('No result'))
             else resolve(result as { secure_url: string })
