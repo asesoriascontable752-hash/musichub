@@ -42,7 +42,12 @@ export async function POST(req: NextRequest) {
     .createSignedUploadUrl(storagePath)
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? 'Error al crear URL firmada' }, { status: 500 })
+    // Diagnostic: list buckets to see what's available
+    const { data: buckets } = await supabase.storage.listBuckets()
+    const names = buckets?.map(b => b.name).join(', ') || 'ninguno'
+    return NextResponse.json({
+      error: `${error?.message ?? 'sin datos'} | buckets: [${names}] | url: ${process.env.SUPABASE_URL?.slice(0, 40)}`,
+    }, { status: 500 })
   }
 
   const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/musichub/${storagePath}`
