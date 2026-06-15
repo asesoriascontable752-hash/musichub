@@ -21,18 +21,12 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 12)
 
-    // First user ever registered becomes admin automatically
-    const countRows = await prisma.$queryRaw<{ n: bigint }[]>`SELECT COUNT(*) as n FROM User`
-    const isFirstUser = Number(countRows[0]?.n ?? 1) === 0
+    const isFirstUser = (await prisma.user.count()) === 0
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashed },
+      data: { name, email, password: hashed, role: isFirstUser ? 'admin' : 'user' },
       select: { id: true, name: true, email: true },
     })
-
-    if (isFirstUser) {
-      await prisma.$executeRaw`UPDATE User SET role = 'admin' WHERE id = ${user.id}`
-    }
 
     return NextResponse.json({ user }, { status: 201 })
   } catch (err) {
