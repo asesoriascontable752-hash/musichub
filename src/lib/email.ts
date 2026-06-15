@@ -1,16 +1,10 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
-  await transporter.sendMail({
-    from: `"MusicHub" <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: 'MusicHub <onboarding@resend.dev>',
     to,
     subject: 'Recuperar contraseña — MusicHub',
     html: `
@@ -21,7 +15,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
         <div style="padding:32px;">
           <h2 style="font-size:20px;margin-top:0;">Recuperar contraseña</h2>
           <p style="color:#b3b3b3;line-height:1.6;">
-            Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón de abajo para crear una nueva contraseña:
+            Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón de abajo para crear una nueva:
           </p>
           <div style="text-align:center;margin:32px 0;">
             <a href="${resetUrl}" style="background:#1DB954;color:#000;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:16px;">
