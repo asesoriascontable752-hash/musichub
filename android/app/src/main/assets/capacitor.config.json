@@ -1,0 +1,23 @@
+{
+	"appId": "com.musichub.app",
+	"appName": "MusicHub",
+	"webDir": "out",
+	"server": {
+		"url": "https://musichub-one.vercel.app",
+		"cleartext": false
+	},
+	"android": {
+		"allowMixedContent": false,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": false,
+		"backgroundColor": "#121212"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#121212",
+			"androidSplashResourceName": "splash",
+			"showSpinner": false
+		}
+	}
+}

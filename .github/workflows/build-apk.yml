@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Crear APK de Android
 
 on:
   push:
@@ -16,37 +16,34 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: Instalar dependencias
         run: npm install
 
-      - name: Create web placeholder (app loads from Vercel server URL)
+      - name: Copiar assets web al proyecto Android
         run: |
-          mkdir -p out
-          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>MusicHub</title></head><body style="background:#121212;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Cargando MusicHub...</p></body></html>' > out/index.html
-
-      - name: Sync Capacitor to Android
-        run: npx cap sync android
+          mkdir -p android/app/src/main/assets/public
+          cp out/index.html android/app/src/main/assets/public/index.html
 
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 35
+      - name: Instalar Android SDK 35
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager "platforms;android-35" "build-tools;35.0.1" "platform-tools"
 
-      - name: Build Debug APK
+      - name: Compilar APK debug
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Subir APK como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: MusicHub-debug-${{ github.run_number }}
