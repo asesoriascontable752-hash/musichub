@@ -30,6 +30,7 @@
     "@types/mime-types": "^3.0.1",
     "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.462.0",
     "mime-types": "^3.0.2",
