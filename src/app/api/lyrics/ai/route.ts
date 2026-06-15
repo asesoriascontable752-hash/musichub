@@ -11,15 +11,17 @@ async function getKey(dbKey: string, envVar: string): Promise<string | undefined
   return process.env[envVar] || undefined
 }
 
-const PROMPT = (artist: string, title: string) =>
-  `Proporciona ÚNICAMENTE la letra completa de la canción "${title}" de "${artist}". Sin introducción, sin explicaciones, sin comillas — solo el texto puro de la letra. Si no conoces esta canción con certeza, responde exactamente: NOT_FOUND`
+const PROMPT = (artist: string | null | undefined, title: string) =>
+  artist
+    ? `Proporciona ÚNICAMENTE la letra completa de la canción "${title}" de "${artist}". Sin introducción, sin explicaciones, sin comillas — solo el texto puro de la letra. Si no conoces esta canción con certeza, responde exactamente: NOT_FOUND`
+    : `Proporciona ÚNICAMENTE la letra completa de la canción titulada "${title}". Sin introducción, sin explicaciones, sin comillas — solo el texto puro de la letra. Si no conoces esta canción con certeza, responde exactamente: NOT_FOUND`
 
 function isValid(text: string) {
   return text && !text.startsWith('NOT_FOUND') && text.length > 60
 }
 
 // ── Claude Haiku ──────────────────────────────────────────────────────────────
-async function fromClaude(artist: string, title: string): Promise<string | null> {
+async function fromClaude(artist: string | null | undefined, title: string): Promise<string | null> {
   const key = await getKey('ai_anthropic_key', 'ANTHROPIC_API_KEY')
   if (!key || key.includes('PEGA')) return null
   try {
@@ -38,7 +40,7 @@ async function fromClaude(artist: string, title: string): Promise<string | null>
 }
 
 // ── Gemini 1.5 Flash ──────────────────────────────────────────────────────────
-async function fromGemini(artist: string, title: string): Promise<string | null> {
+async function fromGemini(artist: string | null | undefined, title: string): Promise<string | null> {
   const key = await getKey('ai_gemini_key', 'GEMINI_API_KEY')
   if (!key) return null
   try {
@@ -67,7 +69,7 @@ async function fromGemini(artist: string, title: string): Promise<string | null>
 }
 
 // ── Perplexity Sonar ──────────────────────────────────────────────────────────
-async function fromPerplexity(artist: string, title: string): Promise<string | null> {
+async function fromPerplexity(artist: string | null | undefined, title: string): Promise<string | null> {
   const key = await getKey('ai_perplexity_key', 'PERPLEXITY_API_KEY')
   if (!key) return null
   try {
@@ -95,7 +97,7 @@ async function fromPerplexity(artist: string, title: string): Promise<string | n
 }
 
 // ── Ollama (local) ────────────────────────────────────────────────────────────
-async function fromOllama(artist: string, title: string): Promise<string | null> {
+async function fromOllama(artist: string | null | undefined, title: string): Promise<string | null> {
   const host = await getKey('ai_ollama_host', 'OLLAMA_HOST') || 'http://localhost:11434'
   const model = await getKey('ai_ollama_model', 'OLLAMA_MODEL') || 'llama3.2'
   try {
@@ -123,7 +125,7 @@ async function fromOllama(artist: string, title: string): Promise<string | null>
 // ── Provider map ──────────────────────────────────────────────────────────────
 type Provider = 'claude' | 'gemini' | 'perplexity' | 'ollama'
 
-const PROVIDERS: Record<Provider, (a: string, t: string) => Promise<string | null>> = {
+const PROVIDERS: Record<Provider, (a: string | null | undefined, t: string) => Promise<string | null>> = {
   claude: fromClaude,
   gemini: fromGemini,
   perplexity: fromPerplexity,
@@ -140,7 +142,7 @@ export async function GET(req: NextRequest) {
   const title = searchParams.get('title')?.trim()
   const provider = (searchParams.get('provider') ?? '') as Provider
 
-  if (!artist || !title) {
+  if (!title) {
     return NextResponse.json({ lyrics: null, provider: null })
   }
 

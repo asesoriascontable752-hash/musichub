@@ -84,11 +84,11 @@ export default function CentralLyrics() {
     }
 
     // ── 3. AI providers cascade ───────────────────────────────────
-    if (songArtist && songTitle) {
+    if (songTitle) {
       for (const p of AI_PROVIDERS) {
         setLoadingStep(p.id)
         setTriedProviders(prev => [...prev, p.id])
-        const result = await tryAI(p.id, songArtist, songTitle)
+        const result = await tryAI(p.id, songArtist ?? null, songTitle)
         if (result) { finish(p.id, result, songId); return }
       }
     }
@@ -125,12 +125,13 @@ export default function CentralLyrics() {
     } catch { return null }
   }
 
-  async function tryAI(provider: AIProvider, artist: string, title: string): Promise<string | null> {
+  async function tryAI(provider: AIProvider, artist: string | null, title: string): Promise<string | null> {
     try {
       const ctrl = new AbortController()
       const t = setTimeout(() => ctrl.abort(), provider === 'ollama' ? 60000 : 25000)
+      const artistParam = artist ? `&artist=${encodeURIComponent(artist)}` : ''
       const res = await fetch(
-        `/api/lyrics/ai?provider=${provider}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`,
+        `/api/lyrics/ai?provider=${provider}${artistParam}&title=${encodeURIComponent(title)}`,
         { signal: ctrl.signal }
       ).finally(() => clearTimeout(t))
       return (await res.json()).lyrics || null
