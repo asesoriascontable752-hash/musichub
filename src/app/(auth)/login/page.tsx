@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,6 +23,7 @@ export default function LoginPage() {
     const res = await signIn('credentials', {
       email,
       password,
+      rememberMe: remember.toString(),
       redirect: false,
     })
 
@@ -95,6 +97,23 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {/* Remember me */}
+            <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <div
+                onClick={() => setRemember(r => !r)}
+                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0 ${remember ? 'bg-spotify-green border-spotify-green' : 'border-white/30 group-hover:border-white/50'}`}
+              >
+                {remember && (
+                  <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                    <polyline points="2,6 5,9 10,3" />
+                  </svg>
+                )}
+              </div>
+              <span onClick={() => setRemember(r => !r)} className="text-sm text-spotify-light-gray group-hover:text-white transition-colors">
+                Recuérdame por 30 días
+              </span>
+            </label>
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">
