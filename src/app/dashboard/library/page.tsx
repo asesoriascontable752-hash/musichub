@@ -45,13 +45,16 @@ export default function LibraryPage() {
     }
   }, [])
 
-  const filtered = filter === 'all' ? songs : songs.filter(s => s.sourceType === filter)
+  // Songs in a label are "filed away" — hide them from the general list
+  const labeledSongIds = new Set(labels.flatMap(l => l.songs.map(s => s.songId)))
+  const unlabeled = songs.filter(s => !labeledSongIds.has(s.id))
+  const filtered = filter === 'all' ? unlabeled : unlabeled.filter(s => s.sourceType === filter)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Tu biblioteca</h1>
-        <span className="text-spotify-light-gray text-sm">{songs.length} canciones</span>
+        <span className="text-spotify-light-gray text-sm">{unlabeled.length} sin clasificar · {songs.length} total</span>
       </div>
 
       {/* Filters */}
@@ -73,7 +76,11 @@ export default function LibraryPage() {
           <Music className="w-16 h-16 text-spotify-light-gray/30" />
           <p className="text-white font-semibold">No hay canciones</p>
           <p className="text-spotify-light-gray text-sm">
-            {filter === 'all' ? 'Agrega música desde el botón + en la barra lateral' : `No tienes canciones de tipo "${filter}"`}
+            {filter === 'all'
+            ? songs.length > 0
+              ? 'Todas tus canciones están clasificadas en etiquetas'
+              : 'Agrega música desde el botón + en la barra lateral'
+            : `No tienes canciones sin clasificar de tipo "${filter}"`}
           </p>
         </div>
       )}

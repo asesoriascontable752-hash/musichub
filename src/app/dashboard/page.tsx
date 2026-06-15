@@ -50,16 +50,19 @@ function DashboardContent() {
     }
   }, [dispatch])
 
-  // Filter songs by active label
+  // Songs that belong to at least one label are "filed away" in that label folder
+  const labeledSongIds = new Set(labels.flatMap(l => l.songs.map(s => s.songId)))
   const activeLabel = labels.find(l => l.id === activeLabelId)
   const labelSongIds = new Set(activeLabel?.songs.map(s => s.songId) || [])
+
   const visibleSongs = activeLabelId
     ? songs.filter(s => labelSongIds.has(s.id))
-    : songs
+    : songs.filter(s => !labeledSongIds.has(s.id))
 
+  const unlabeledCount = songs.filter(s => !labeledSongIds.has(s.id)).length
   const listTitle = activeLabel
     ? activeLabel.name
-    : songs.length > 0 ? `Tu música (${songs.length})` : 'Tu música'
+    : unlabeledCount > 0 ? `Sin clasificar (${unlabeledCount})` : 'Sin clasificar'
 
   return (
     <div className="flex gap-5 h-full min-h-0">
