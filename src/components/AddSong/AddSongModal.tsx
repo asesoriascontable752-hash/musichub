@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, Link2, Upload, Youtube, Music, FileVideo, Loader2, Search, Lock } from 'lucide-react'
+import { X, Link2, Upload, Youtube, Music, FileVideo, Loader2, Search, Lock, FolderOpen, CheckCircle2 } from 'lucide-react'
 import { Song } from '@/types'
 
 type Tab = 'url' | 'upload'
@@ -19,7 +19,10 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [perms, setPerms] = useState<Perms | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; name: string } | null>(null)
+  const [uploadDone, setUploadDone] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
+  const folderRef = useRef<HTMLInputElement>(null)
 
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be')
   const isSpotify = url.includes('spotify.com')
@@ -28,7 +31,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
     fetch('/api/permissions/me').then(r => r.json()).then(d => setPerms(d.permissions ?? null))
   }, [])
 
-  // Auto-fetch metadata 600ms after the user stops typing/pasting
   const lastAutoFetched = useRef('')
   useEffect(() => {
     if (!url || url === lastAutoFetched.current) return
@@ -106,41 +108,54 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
     onClose()
   }
 
-  async function handleFile(file: File) {
-    if (!file) return
-    setError('')
-    setLoading(true)
-
+  async function uploadSingleFile(file: File): Promise<Song | null> {
     const formData = new FormData()
     formData.append('file', file)
 
     const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
     const uploadData = await uploadRes.json()
-
-    if (!uploadRes.ok) { setError(uploadData.error || 'Error al subir'); setLoading(false); return }
+    if (!uploadRes.ok) return null
 
     const songName = file.name.replace(/\.[^.]+$/, '')
     const res = await fetch('/api/songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: title || songName,
-        artist: artist || undefined,
+        title: songName,
         sourceType: 'local',
         filePath: uploadData.url,
       }),
     })
 
+    if (!res.ok) return null
     const data = await res.json()
-    setLoading(false)
+    return data.song ?? null
+  }
 
-    if (!res.ok) { setError(data.error || 'Error al guardar'); return }
-    window.dispatchEvent(new CustomEvent('song-added', { detail: data.song }))
-    onAdded(data.song)
+  async function handleFiles(fileList: FileList) {
+    const AUDIO_VIDEO = /^(audio|video)\//
+    const files = Array.from(fileList).filter(f => AUDIO_VIDEO.test(f.type))
+    if (!files.length) { setError('No se encontraron archivos de audio o video'); return }
+
+    setError('')
+    setLoading(true)
+    setUploadDone(0)
+
+    for (let i = 0; i < files.length; i++) {
+      setUploadProgress({ current: i + 1, total: files.length, name: files[i].name })
+      const song = await uploadSingleFile(files[i])
+      if (song) {
+        window.dispatchEvent(new CustomEvent('song-added', { detail: song }))
+        onAdded(song)
+        setUploadDone(i + 1)
+      }
+    }
+
+    setLoading(false)
+    setUploadProgress(null)
     onClose()
   }
 
-  // Permission denied view
   const noPerm = perms !== null && (
     (tab === 'url' && !perms.canAddSongs) ||
     (tab === 'upload' && (!perms.canUpload || !perms.canAddSongs))
@@ -164,7 +179,6 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
         </div>
 
         <div className="px-6 pb-6 space-y-4">
-          {/* No permission banner */}
           {noPerm && (
             <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
               <Lock className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -196,14 +210,8 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                     </button>
                   )}
                 </div>
-                {isSpotify && (
-                  <p className="text-xs text-spotify-green mt-1">
-                    ✓ Spotify — se abrirá el reproductor oficial de Spotify integrado
-                  </p>
-                )}
-                {!isYouTube && !isSpotify && (
-                  <p className="text-xs text-spotify-light-gray mt-1">YouTube, Spotify, SoundCloud, Twitch, y más</p>
-                )}
+                {isSpotify && <p className="text-xs text-spotify-green mt-1">✓ Spotify — se abrirá el reproductor oficial de Spotify integrado</p>}
+                {!isYouTube && !isSpotify && <p className="text-xs text-spotify-light-gray mt-1">YouTube, Spotify, SoundCloud, Twitch, y más</p>}
               </div>
 
               <div>
@@ -228,26 +236,36 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
 
           {tab === 'upload' && !noPerm && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-spotify-light-gray mb-1.5">Título (opcional)</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Se auto-detecta del nombre del archivo"
-                  className="w-full px-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40" />
-              </div>
-              <div>
-                <label className="block text-sm text-spotify-light-gray mb-1.5">Artista (opcional)</label>
-                <input type="text" value={artist} onChange={e => setArtist(e.target.value)} placeholder="Nombre del artista"
-                  className="w-full px-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40" />
-              </div>
+              {/* Drop zone */}
               <div
-                onClick={() => fileRef.current?.click()}
+                onClick={() => !loading && fileRef.current?.click()}
                 onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? 'border-spotify-green bg-spotify-green/5' : 'border-white/20 hover:border-white/40'}`}>
-                {loading ? (
+                onDrop={e => {
+                  e.preventDefault(); setDragOver(false)
+                  if (!loading && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files)
+                }}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? 'border-spotify-green bg-spotify-green/5' : 'border-white/20 hover:border-white/40'} ${loading ? 'pointer-events-none' : ''}`}>
+
+                {loading && uploadProgress ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
-                    <p className="text-sm text-spotify-light-gray">Subiendo archivo...</p>
+                    <p className="text-white font-medium text-sm">
+                      Subiendo {uploadProgress.current} de {uploadProgress.total}
+                    </p>
+                    <p className="text-spotify-light-gray text-xs truncate max-w-[240px]">{uploadProgress.name}</p>
+                    {/* Progress bar */}
+                    <div className="w-full bg-white/10 rounded-full h-1.5 mt-1">
+                      <div
+                        className="bg-spotify-green h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                      />
+                    </div>
+                    {uploadDone > 0 && (
+                      <p className="text-spotify-green text-xs flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {uploadDone} {uploadDone === 1 ? 'canción agregada' : 'canciones agregadas'}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
@@ -255,15 +273,52 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                       <Music className="w-8 h-8 text-spotify-light-gray" />
                       <FileVideo className="w-8 h-8 text-spotify-light-gray" />
                     </div>
-                    <p className="text-white font-medium">Arrastra tu archivo aquí</p>
-                    <p className="text-spotify-light-gray text-sm">o haz clic para seleccionar</p>
-                    <p className="text-spotify-light-gray/60 text-xs">MP3, WAV, FLAC, OGG, MP4, AVI · Máx 100MB</p>
+                    <p className="text-white font-medium">Arrastra archivos aquí</p>
+                    <p className="text-spotify-light-gray text-sm">o elige una opción abajo</p>
+                    <p className="text-spotify-light-gray/60 text-xs">MP3, WAV, FLAC, OGG, MP4 · Máx 100MB por archivo</p>
                   </div>
                 )}
               </div>
+
+              {/* Buttons */}
+              {!loading && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white hover:bg-white/10 transition-colors">
+                    <Upload className="w-4 h-4 text-spotify-green" />
+                    Seleccionar archivos
+                  </button>
+                  <button
+                    onClick={() => folderRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white hover:bg-white/10 transition-colors">
+                    <FolderOpen className="w-4 h-4 text-spotify-green" />
+                    Seleccionar carpeta
+                  </button>
+                </div>
+              )}
+
               {error && <p className="text-red-400 text-sm">{error}</p>}
-              <input ref={fileRef} type="file" accept="audio/*,video/*" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+
+              {/* Hidden inputs */}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="audio/*,video/*"
+                multiple
+                className="hidden"
+                onChange={e => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = '' }}
+              />
+              <input
+                ref={folderRef}
+                type="file"
+                accept="audio/*,video/*"
+                // @ts-ignore — non-standard but widely supported
+                webkitdirectory=""
+                multiple
+                className="hidden"
+                onChange={e => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = '' }}
+              />
             </div>
           )}
         </div>
