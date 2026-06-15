@@ -21,10 +21,10 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const rows = await prisma.$queryRaw<{ id: string; email: string; name: string | null; password: string | null; role: string }[]>`
-          SELECT id, email, name, password, role FROM User WHERE email = ${credentials.email} LIMIT 1
-        `
-        const user = rows[0]
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+          select: { id: true, email: true, name: true, password: true, role: true },
+        })
         if (!user || !user.password) return null
 
         const isValid = await bcrypt.compare(credentials.password, user.password)
