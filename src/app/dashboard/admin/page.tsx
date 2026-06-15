@@ -280,25 +280,22 @@ function AISettingsTab() {
 type AdminTab = 'ai' | 'users'
 
 export default function AdminPage() {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [tab, setTab] = useState<AdminTab>('ai')
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
-    fetch('/api/admin/settings').then(res => {
-      if (res.status === 403) { router.push('/dashboard'); return }
-      setIsAdmin(true); setChecking(false)
-    })
-  }, [status])
+    const role = (session?.user as any)?.role
+    if (role !== 'admin') router.push('/dashboard')
+  }, [status, session])
 
-  if (checking || status === 'loading') {
+  if (status === 'loading' || status === 'unauthenticated') {
     return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 text-spotify-green animate-spin" /></div>
   }
-  if (!isAdmin) return null
+  const role = (session?.user as any)?.role
+  if (role !== 'admin') return null
 
   return (
     <div className="h-full overflow-y-auto">
