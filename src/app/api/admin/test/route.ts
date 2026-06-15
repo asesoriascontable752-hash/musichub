@@ -55,6 +55,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, msg: 'Perplexity responde correctamente ✓' })
     }
 
+    if (provider === 'ollama') {
+      const host = (await getSetting('ai_ollama_host')) || 'http://localhost:11434'
+      try {
+        const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(5000) })
+        if (!res.ok) return NextResponse.json({ ok: false, error: `Ollama respondió HTTP ${res.status}` })
+        const data = await res.json()
+        const models: string[] = (data.models || []).map((m: any) => m.name)
+        return NextResponse.json({ ok: true, msg: `Ollama activo — ${models.length} modelo(s) disponible(s)`, models })
+      } catch (e: any) {
+        return NextResponse.json({ ok: false, error: `No se pudo conectar a ${host} — ¿está Ollama corriendo?` })
+      }
+    }
+
+    if (provider === 'ollama-models') {
+      const host = (await getSetting('ai_ollama_host')) || 'http://localhost:11434'
+      try {
+        const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(5000) })
+        if (!res.ok) return NextResponse.json({ ok: false, error: `HTTP ${res.status}` })
+        const data = await res.json()
+        const models: string[] = (data.models || []).map((m: any) => m.name)
+        return NextResponse.json({ ok: true, models })
+      } catch {
+        return NextResponse.json({ ok: false, error: 'Sin conexión a Ollama' })
+      }
+    }
+
     return NextResponse.json({ ok: false, error: 'Proveedor desconocido' })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message ?? 'Error de red' })
