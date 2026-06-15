@@ -10,91 +10,20 @@ export async function POST(req: NextRequest) {
   const { provider } = await req.json()
 
   try {
-    if (provider === 'gemini') {
-      const key = await getSetting('ai_gemini_key')
-      if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
-      const model = (await getSetting('ai_gemini_model')) || 'gemini-1.5-flash'
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'Hola' }] }] }),
-      })
-      if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
-      return NextResponse.json({ ok: true, msg: `Gemini (${model}) responde correctamente ✓` })
-    }
-
-    if (provider === 'gemini-models') {
-      const key = await getSetting('ai_gemini_key')
-      if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=100`)
-      if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
-      const data = await res.json()
-      const models: string[] = (data.models || [])
-        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m: any) => (m.name as string).replace('models/', ''))
-      return NextResponse.json({ ok: true, models })
-    }
-
-    if (provider === 'claude') {
-      const key = await getSetting('ai_anthropic_key')
-      if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'Hola' }] }),
-      })
-      if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
-      return NextResponse.json({ ok: true, msg: 'Claude Haiku responde correctamente ✓' })
-    }
-
     if (provider === 'spotify') {
       const clientId = await getSetting('spotify_client_id')
       const clientSecret = await getSetting('spotify_client_secret')
       if (!clientId || !clientSecret) return NextResponse.json({ ok: false, error: 'Falta Client ID o Client Secret' })
       const res = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64') },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+        },
         body: 'grant_type=client_credentials',
       })
       if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error_description ?? `HTTP ${res.status}` }) }
       return NextResponse.json({ ok: true, msg: 'Spotify autenticado correctamente ✓' })
-    }
-
-    if (provider === 'perplexity') {
-      const key = await getSetting('ai_perplexity_key')
-      if (!key) return NextResponse.json({ ok: false, error: 'No hay clave guardada' })
-      const res = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'sonar', max_tokens: 10, messages: [{ role: 'user', content: 'Hola' }] }),
-      })
-      if (!res.ok) { const d = await res.json(); return NextResponse.json({ ok: false, error: d.error?.message ?? `HTTP ${res.status}` }) }
-      return NextResponse.json({ ok: true, msg: 'Perplexity responde correctamente ✓' })
-    }
-
-    if (provider === 'ollama') {
-      const host = (await getSetting('ai_ollama_host')) || 'http://localhost:11434'
-      try {
-        const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(5000) })
-        if (!res.ok) return NextResponse.json({ ok: false, error: `Ollama respondió HTTP ${res.status}` })
-        const data = await res.json()
-        const models: string[] = (data.models || []).map((m: any) => m.name)
-        return NextResponse.json({ ok: true, msg: `Ollama activo — ${models.length} modelo(s) disponible(s)`, models })
-      } catch (e: any) {
-        return NextResponse.json({ ok: false, error: `No se pudo conectar a ${host} — ¿está Ollama corriendo?` })
-      }
-    }
-
-    if (provider === 'ollama-models') {
-      const host = (await getSetting('ai_ollama_host')) || 'http://localhost:11434'
-      try {
-        const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(5000) })
-        if (!res.ok) return NextResponse.json({ ok: false, error: `HTTP ${res.status}` })
-        const data = await res.json()
-        const models: string[] = (data.models || []).map((m: any) => m.name)
-        return NextResponse.json({ ok: true, models })
-      } catch {
-        return NextResponse.json({ ok: false, error: 'Sin conexión a Ollama' })
-      }
     }
 
     return NextResponse.json({ ok: false, error: 'Proveedor desconocido' })
