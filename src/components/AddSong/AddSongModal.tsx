@@ -109,22 +109,42 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
   }
 
   async function uploadSingleFile(file: File): Promise<Song | null> {
-    const formData = new FormData()
-    formData.append('file', file)
+    let fileUrl: string | null = null
 
-    const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
-    const uploadData = await uploadRes.json()
-    if (!uploadRes.ok) return null
+    // Try direct-to-Supabase upload (bypasses Vercel 4.5MB body limit)
+    const signRes = await fetch('/api/upload/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+    })
+
+    if (signRes.ok) {
+      const { signedUrl, publicUrl } = await signRes.json()
+      const putRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+      if (putRes.ok) fileUrl = publicUrl
+    }
+
+    // Fallback: send through server (local dev, no Supabase)
+    if (!fileUrl) {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (!uploadRes.ok) return null
+      const uploadData = await uploadRes.json()
+      fileUrl = uploadData.url
+    }
+
+    if (!fileUrl) return null
 
     const songName = file.name.replace(/\.[^.]+$/, '')
     const res = await fetch('/api/songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: songName,
-        sourceType: 'local',
-        filePath: uploadData.url,
-      }),
+      body: JSON.stringify({ title: songName, sourceType: 'local', filePath: fileUrl }),
     })
 
     if (!res.ok) return null

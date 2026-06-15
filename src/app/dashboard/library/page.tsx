@@ -24,6 +24,15 @@ export default function LibraryPage() {
       .finally(() => setLoading(false))
   }, [dispatch])
 
+  useEffect(() => {
+    function onSongAdded(e: Event) {
+      const song = (e as CustomEvent).detail as Song
+      setSongs(prev => prev.find(s => s.id === song.id) ? prev : [song, ...prev])
+    }
+    window.addEventListener('song-added', onSongAdded)
+    return () => window.removeEventListener('song-added', onSongAdded)
+  }, [])
+
   const filtered = filter === 'all' ? songs : songs.filter(s => s.sourceType === filter)
 
   return (
