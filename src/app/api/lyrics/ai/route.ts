@@ -99,7 +99,7 @@ async function fromPerplexity(artist: string | null | undefined, title: string):
 // ── Ollama (local) ────────────────────────────────────────────────────────────
 async function fromOllama(artist: string | null | undefined, title: string): Promise<string | null> {
   const host = await getKey('ai_ollama_host', 'OLLAMA_HOST') || 'http://localhost:11434'
-  const model = await getKey('ai_ollama_model', 'OLLAMA_MODEL') || 'llama3.2'
+  const model = await getKey('ai_ollama_model', 'OLLAMA_MODEL') || 'gemma4:27b'
   try {
     const res = await fetch(`${host}/api/generate`, {
       method: 'POST',
