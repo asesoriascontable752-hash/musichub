@@ -105,6 +105,7 @@ export default function Player() {
         {playerUrl && !isSpotify && (
           <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
             <ReactPlayer
+              key={currentSong.id}
               ref={playerRef}
               url={playerUrl}
               playing={isPlaying}
