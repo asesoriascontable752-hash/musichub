@@ -6,3 +6,5 @@ prisma/dev.db-journal
 .env.local
 .env
 *.log
+.env*.tmp
+.vercel/
