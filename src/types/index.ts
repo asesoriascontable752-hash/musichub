@@ -5,7 +5,7 @@ export interface Song {
   album?: string | null
   duration?: number | null
   coverUrl?: string | null
-  sourceType: 'youtube' | 'local' | 'url'
+  sourceType: 'youtube' | 'spotify' | 'local' | 'url'
   sourceUrl?: string | null
   filePath?: string | null
   lyrics?: string | null

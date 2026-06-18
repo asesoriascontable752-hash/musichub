@@ -11,7 +11,7 @@ const songSchema = z.object({
   album: z.string().optional(),
   duration: z.number().optional(),
   coverUrl: z.string().url().optional().nullable(),
-  sourceType: z.enum(['youtube', 'local', 'url']),
+  sourceType: z.enum(['youtube', 'spotify', 'local', 'url']),
   sourceUrl: z.string().optional().nullable(),
   filePath: z.string().optional().nullable(),
   lyrics: z.string().optional().nullable(),
@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const songs = await prisma.song.findMany({
-    where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
   })
 

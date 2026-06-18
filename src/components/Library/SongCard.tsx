@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check, X } from 'lucide-react'
+import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check } from 'lucide-react'
 import { Song } from '@/types'
 import { usePlayer } from '@/contexts/PlayerContext'
+import { useSession } from 'next-auth/react'
 
 interface Label { id: string; name: string; color: string; songs: { songId: string }[] }
 
@@ -16,21 +17,26 @@ interface SongCardProps {
   onLabelChange?: () => void
 }
 
-const SOURCE_ICONS = {
+const SOURCE_ICONS: Record<string, React.ReactNode> = {
   youtube: <Youtube className="w-3 h-3 text-red-400" />,
   spotify: <Music className="w-3 h-3 text-spotify-green" />,
   local: <FileAudio className="w-3 h-3 text-blue-400" />,
   url: <Link2 className="w-3 h-3 text-purple-400" />,
 }
-const SOURCE_LABELS = { youtube: 'YouTube', spotify: 'Spotify', local: 'Local', url: 'URL' }
+const SOURCE_LABELS: Record<string, string> = { youtube: 'YouTube', spotify: 'Spotify', local: 'Local', url: 'URL' }
 
 export default function SongCard({ song, songs, labels = [], onDelete, onLabelChange }: SongCardProps) {
   const { state, playSong } = usePlayer()
+  const { data: session } = useSession()
   const isCurrentSong = state.currentSong?.id === song.id
   const isPlaying = isCurrentSong && state.isPlaying
   const [showLabels, setShowLabels] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const isOwner = song.userId === session?.user?.id
+  const isAdmin = (session?.user as any)?.role === 'admin'
+  const canDelete = isOwner || isAdmin
 
   // Close label menu on outside click
   useEffect(() => {
@@ -139,10 +145,12 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
           </div>
         )}
 
-        <button onClick={handleDelete}
-          className="p-1.5 text-spotify-light-gray hover:text-red-400 transition-colors rounded">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {canDelete && (
+          <button onClick={handleDelete}
+            className="p-1.5 text-spotify-light-gray hover:text-red-400 transition-colors rounded">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   )
