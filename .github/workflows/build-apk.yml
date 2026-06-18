@@ -56,8 +56,11 @@ jobs:
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle.log
           BUILD_EXIT=${PIPESTATUS[0]}
           if [ $BUILD_EXIT -ne 0 ]; then
-            echo "::error::BUILD FAILED - tail of Gradle output:"
-            tail -30 /tmp/gradle.log | while IFS= read -r line; do
+            echo "::error::=== GRADLE BUILD FAILURE ==="
+            grep -A 15 "What went wrong" /tmp/gradle.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -E "^> |error:|Error:" /tmp/gradle.log | head -10 | while IFS= read -r line; do
               echo "::error::$line"
             done
             exit $BUILD_EXIT
