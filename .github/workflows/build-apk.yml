@@ -32,20 +32,36 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Instalar Android SDK 35
+      - name: Instalar Android SDK packages
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "build-tools;35.0.1" "platform-tools" 2>&1 | tail -5 || true
-          sdkmanager --list_installed 2>/dev/null | grep -E "build-tools|platforms" || true
+          sdkmanager "platforms;android-35" || true
+          sdkmanager "build-tools;34.0.0" || true
+          sdkmanager "platform-tools" || true
+          echo "Installed packages:"
+          sdkmanager --list_installed 2>/dev/null | grep -E "build-tools|platforms;android" || true
 
       - name: Crear local.properties
-        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+        run: |
+          SDK_PATH="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "sdk.dir=$SDK_PATH" > android/local.properties
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "SDK path: $SDK_PATH"
+          ls "$SDK_PATH/build-tools/" 2>/dev/null || echo "WARNING: no build-tools directory"
 
       - name: Compilar APK debug
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo "::error::BUILD FAILED - tail of Gradle output:"
+            tail -30 /tmp/gradle.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit $BUILD_EXIT
+          fi
 
       - name: Subir APK como artefacto
         uses: actions/upload-artifact@v4
