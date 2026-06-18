@@ -35,13 +35,17 @@ jobs:
       - name: Instalar Android SDK 35
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.1" "platform-tools"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "build-tools;35.0.1" "platform-tools" 2>&1 | tail -5 || true
+          sdkmanager --list_installed 2>/dev/null | grep -E "build-tools|platforms" || true
+
+      - name: Crear local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
       - name: Compilar APK debug
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Subir APK como artefacto
         uses: actions/upload-artifact@v4
