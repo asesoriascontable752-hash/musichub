@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check, Edit2, X } from 'lucide-react'
+import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check, Edit2, X, Globe, Lock } from 'lucide-react'
 import { Song } from '@/types'
 import { usePlayer } from '@/contexts/PlayerContext'
 import { useSession } from 'next-auth/react'
@@ -39,8 +39,8 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
   const isOwner = song.userId === session?.user?.id
   const isAdmin = (session?.user as any)?.role === 'admin'
   const canDelete = isOwner || isAdmin
+  const [isPublic, setIsPublic] = useState(!!(song as any).isPublic)
 
-  // Close label menu on outside click
   useEffect(() => {
     if (!showLabels) return
     function close(e: MouseEvent) {
@@ -72,6 +72,17 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
     })
     song.title = titleDraft.trim()
     setEditingTitle(false)
+  }
+
+  async function togglePublic(e: React.MouseEvent) {
+    e.stopPropagation()
+    const next = !isPublic
+    setIsPublic(next)
+    await fetch(`/api/songs/${song.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPublic: next }),
+    })
   }
 
   async function handleDelete(e: React.MouseEvent) {
@@ -120,13 +131,33 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
             <button onMouseDown={e => { e.preventDefault(); setEditingTitle(false) }} className="text-white/30 p-0.5"><X className="w-3.5 h-3.5" /></button>
           </div>
         ) : (
-          <p className={`text-sm font-medium truncate ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className={`text-sm font-medium truncate flex-1 ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+            {/* Public/private badge — always visible for song owner */}
+            {isOwner && (
+              <button
+                onClick={togglePublic}
+                className={`flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all active:scale-95 ${
+                  isPublic
+                    ? 'bg-spotify-green/20 text-spotify-green border border-spotify-green/30'
+                    : 'bg-white/8 text-white/40 border border-white/10'
+                }`}
+                title={isPublic ? 'Pública · toca para hacer privada' : 'Privada · toca para compartir'}
+              >
+                {isPublic ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                {isPublic ? 'Pública' : 'Privada'}
+              </button>
+            )}
+          </div>
         )}
-        <div className="flex items-center gap-1.5">
+
+        <div className="flex items-center gap-1.5 mt-0.5">
           {SOURCE_ICONS[song.sourceType]}
           <p className="text-xs text-spotify-light-gray truncate">{song.artist || 'Artista desconocido'} · {SOURCE_LABELS[song.sourceType]}</p>
         </div>
-        {/* Label chips */}
+        {!isOwner && song.user?.name && (
+          <p className="text-[10px] text-white/30 truncate">Compartida por {song.user.name}</p>
+        )}
         {songLabels.length > 0 && (
           <div className="flex gap-1 mt-0.5 flex-wrap">
             {songLabels.map(l => (
