@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Square, Play, Pause, Trash2, Save, Loader2, ChevronDown, ChevronUp, Music } from 'lucide-react'
+import { Mic, Square, Play, Pause, Trash2, Save, Loader2, ChevronDown, ChevronUp, Music, Globe, Lock } from 'lucide-react'
 import { Song } from '@/types'
 
 interface VoiceRecorderProps {
@@ -34,6 +34,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [playing, setPlaying] = useState(false)
   const [lyricsExpanded, setLyricsExpanded] = useState(true)
+  const [isPublicRec, setIsPublicRec] = useState(false)
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -167,7 +168,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
       const songRes = await fetch('/api/songs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: name.trim(), sourceType: 'local', filePath: fileUrl }),
+        body: JSON.stringify({ title: name.trim(), sourceType: 'local', filePath: fileUrl, isPublic: isPublicRec }),
       })
       if (!songRes.ok) {
         const d = await songRes.json().catch(() => ({}))
@@ -270,6 +271,27 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
               autoFocus
               className="w-full px-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40"
             />
+          </div>
+
+          {/* Privacidad */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+            <div>
+              <p className="text-sm text-white font-medium">Privacidad</p>
+              <p className="text-xs text-white/40">
+                {isPublicRec ? 'Todos los usuarios la pueden ver' : 'Solo tú puedes verla'}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsPublicRec(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 ${
+                isPublicRec
+                  ? 'bg-spotify-green/20 text-spotify-green border border-spotify-green/30'
+                  : 'bg-white/10 text-white/50 border border-white/10'
+              }`}
+            >
+              {isPublicRec ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+              {isPublicRec ? 'Pública' : 'Privada'}
+            </button>
           </div>
 
           <p className="text-xs text-white/40 flex items-center gap-1.5">

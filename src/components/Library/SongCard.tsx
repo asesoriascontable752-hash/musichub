@@ -131,9 +131,27 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
             <button onMouseDown={e => { e.preventDefault(); setEditingTitle(false) }} className="text-white/30 p-0.5"><X className="w-3.5 h-3.5" /></button>
           </div>
         ) : (
-          <p className={`text-sm font-medium truncate ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className={`text-sm font-medium truncate flex-1 ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+            {/* Public/private badge — always visible for song owner */}
+            {isOwner && (
+              <button
+                onClick={togglePublic}
+                className={`flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all active:scale-95 ${
+                  isPublic
+                    ? 'bg-spotify-green/20 text-spotify-green border border-spotify-green/30'
+                    : 'bg-white/8 text-white/40 border border-white/10'
+                }`}
+                title={isPublic ? 'Pública · toca para hacer privada' : 'Privada · toca para compartir'}
+              >
+                {isPublic ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                {isPublic ? 'Pública' : 'Privada'}
+              </button>
+            )}
+          </div>
         )}
-        <div className="flex items-center gap-1.5">
+
+        <div className="flex items-center gap-1.5 mt-0.5">
           {SOURCE_ICONS[song.sourceType]}
           <p className="text-xs text-spotify-light-gray truncate">{song.artist || 'Artista desconocido'} · {SOURCE_LABELS[song.sourceType]}</p>
         </div>
@@ -153,17 +171,6 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
 
       {/* Actions — always visible on mobile, hover on desktop */}
       <div className="flex items-center gap-1.5 flex-shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-        {/* Public/private toggle */}
-        {isOwner && !editingTitle && (
-          <button
-            onClick={togglePublic}
-            className={`p-1.5 transition-colors rounded ${isPublic ? 'text-spotify-green hover:text-white' : 'text-spotify-light-gray hover:text-white'}`}
-            title={isPublic ? 'Pública · toca para hacer privada' : 'Privada · toca para compartir'}
-          >
-            {isPublic ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          </button>
-        )}
-
         {/* Rename button */}
         {(isOwner || isAdmin) && !editingTitle && (
           <button
