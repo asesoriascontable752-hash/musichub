@@ -65,9 +65,9 @@ function DashboardContent() {
     : unlabeledCount > 0 ? `Sin clasificar (${unlabeledCount})` : 'Sin clasificar'
 
   return (
-    <div className="flex gap-5 h-full min-h-0">
+    <div className="flex flex-col md:flex-row gap-3 md:gap-5 h-full min-h-0">
       {/* Left column: song list */}
-      <div className="w-72 flex-shrink-0 flex flex-col min-h-0">
+      <div className="w-full md:w-72 flex-shrink-0 flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-3 flex-shrink-0">
           {activeLabel && (
             <span style={{ color: activeLabel.color }}><Tag className="w-4 h-4" /></span>
@@ -111,11 +111,11 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="w-px bg-white/5 flex-shrink-0" />
+      {/* Divider — desktop only */}
+      <div className="hidden md:block w-px bg-white/5 flex-shrink-0" />
 
-      {/* Right: lyrics */}
-      <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-gradient-to-b from-white/[0.03] to-transparent rounded-2xl p-5 overflow-hidden">
+      {/* Right: lyrics — desktop only */}
+      <div className="hidden md:flex flex-1 min-h-0 min-w-0 flex-col bg-gradient-to-b from-white/[0.03] to-transparent rounded-2xl p-5 overflow-hidden">
         <CentralLyrics />
       </div>
     </div>

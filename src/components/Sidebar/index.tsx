@@ -25,9 +25,13 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   bookmark: <Bookmark className="w-3.5 h-3.5" />,
 }
 
-interface SidebarProps { onAddSong: () => void }
+interface SidebarProps {
+  onAddSong: () => void
+  isOpen?: boolean
+  onClose?: () => void
+}
 
-export default function Sidebar({ onAddSong }: SidebarProps) {
+export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
@@ -81,12 +85,12 @@ export default function Sidebar({ onAddSong }: SidebarProps) {
   async function deleteLabel(id: string) {
     await fetch(`/api/labels/${id}`, { method: 'DELETE' })
     setLabels(prev => prev.filter(l => l.id !== id))
-    // If filtering by this label, go back to dashboard
     if (pathname.includes('?')) router.push('/dashboard')
   }
 
   function navigateToLabel(id: string) {
     router.push(`/dashboard?label=${id}`)
+    onClose?.()
   }
 
   const activeLabelId = typeof window !== 'undefined'
@@ -94,24 +98,36 @@ export default function Sidebar({ onAddSong }: SidebarProps) {
     : null
 
   return (
-    <aside className="w-64 bg-spotify-black flex flex-col h-full flex-shrink-0">
+    <aside className={`
+      w-64 bg-spotify-black flex flex-col flex-shrink-0
+      fixed md:static inset-y-0 left-0 z-50 h-full
+      transition-transform duration-300 ease-in-out
+      ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+    `}>
       {/* Logo */}
-      <div className="p-6 pb-4">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
+      <div className="p-6 pb-4 flex items-center justify-between">
+        <Link href="/dashboard" onClick={onClose} className="flex items-center gap-3 group">
           <div className="w-10 h-10 bg-spotify-green rounded-full flex items-center justify-center shadow-lg shadow-spotify-green/20 group-hover:shadow-spotify-green/40 transition-shadow">
             <Music2 className="w-5 h-5 text-black" />
           </div>
           <span className="text-xl font-bold text-white">MusicHub</span>
         </Link>
+        <button
+          onClick={onClose}
+          className="md:hidden text-white/40 hover:text-white transition-colors p-1"
+          aria-label="Cerrar menú"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation */}
       <nav className="px-3">
-        <NavItem href="/dashboard" icon={<Home className="w-5 h-5" />} label="Inicio" active={pathname === '/dashboard' && !activeLabelId} />
-        <NavItem href="/dashboard/search" icon={<Search className="w-5 h-5" />} label="Buscar" active={pathname === '/dashboard/search'} />
-        <NavItem href="/dashboard/library" icon={<Library className="w-5 h-5" />} label="Tu biblioteca" active={pathname === '/dashboard/library'} />
+        <NavItem href="/dashboard" icon={<Home className="w-5 h-5" />} label="Inicio" active={pathname === '/dashboard' && !activeLabelId} onClick={onClose} />
+        <NavItem href="/dashboard/search" icon={<Search className="w-5 h-5" />} label="Buscar" active={pathname === '/dashboard/search'} onClick={onClose} />
+        <NavItem href="/dashboard/library" icon={<Library className="w-5 h-5" />} label="Tu biblioteca" active={pathname === '/dashboard/library'} onClick={onClose} />
         {isAdmin && (
-          <NavItem href="/dashboard/admin" icon={<Settings className="w-5 h-5" />} label="Admin IA" active={pathname === '/dashboard/admin'} highlight />
+          <NavItem href="/dashboard/admin" icon={<Settings className="w-5 h-5" />} label="Admin IA" active={pathname === '/dashboard/admin'} highlight onClick={onClose} />
         )}
       </nav>
 
@@ -144,7 +160,7 @@ export default function Sidebar({ onAddSong }: SidebarProps) {
       {/* Label list */}
       <div className="flex-1 overflow-y-auto px-3 space-y-0.5">
         {/* "Todos" button */}
-        <button onClick={() => router.push('/dashboard')}
+        <button onClick={() => { router.push('/dashboard'); onClose?.() }}
           className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors flex items-center gap-2 ${!activeLabelId && pathname === '/dashboard' ? 'text-white bg-white/10' : 'text-spotify-light-gray hover:text-white hover:bg-white/5'}`}>
           <Library className="w-3.5 h-3.5" /> Todas las canciones
         </button>
@@ -215,11 +231,11 @@ export default function Sidebar({ onAddSong }: SidebarProps) {
   )
 }
 
-function NavItem({ href, icon, label, active, highlight }: {
-  href: string; icon: React.ReactNode; label: string; active: boolean; highlight?: boolean
+function NavItem({ href, icon, label, active, highlight, onClick }: {
+  href: string; icon: React.ReactNode; label: string; active: boolean; highlight?: boolean; onClick?: () => void
 }) {
   return (
-    <Link href={href}
+    <Link href={href} onClick={onClick}
       className={`flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
         active ? 'text-white bg-white/10'
         : highlight ? 'text-spotify-green hover:text-spotify-green hover:bg-spotify-green/10'
