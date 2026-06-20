@@ -98,16 +98,6 @@ export default function Player() {
         </div>
       )}
 
-      {/* Thin progress bar at top (mobile only) */}
-      {!isSpotify && (
-        <div className="md:hidden h-0.5 bg-white/10 relative">
-          <div
-            className="absolute inset-y-0 left-0 bg-spotify-green transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
       <div className="bg-[#181818] border-t border-white/5 px-3 md:px-4 relative z-50">
         {/* Hidden ReactPlayer — off-screen but with real size so YouTube iframe works on mobile */}
         {playerUrl && !isSpotify && (
@@ -137,51 +127,72 @@ export default function Player() {
         )}
 
         {/* ── Mobile layout ── */}
-        <div className="flex md:hidden items-center gap-3 py-2">
-          {/* Cover */}
-          <div className="relative w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-spotify-gray">
-            {currentSong.coverUrl ? (
-              <Image src={currentSong.coverUrl} alt={currentSong.title} fill className="object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ListMusic className="w-5 h-5 text-spotify-light-gray" />
-              </div>
-            )}
-          </div>
+        <div className="flex md:hidden flex-col pt-2 pb-3 gap-2">
+          {/* Row 1: Cover + info + controls */}
+          <div className="flex items-center gap-3">
+            {/* Cover */}
+            <div className="relative w-11 h-11 rounded-md overflow-hidden flex-shrink-0 bg-spotify-gray">
+              {currentSong.coverUrl ? (
+                <Image src={currentSong.coverUrl} alt={currentSong.title} fill className="object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ListMusic className="w-5 h-5 text-spotify-light-gray" />
+                </div>
+              )}
+            </div>
 
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">{currentSong.title}</p>
-            <p className="text-spotify-light-gray text-xs truncate">{currentSong.artist || 'Desconocido'}</p>
-          </div>
+            {/* Title */}
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">{currentSong.title}</p>
+              <p className="text-spotify-light-gray text-xs truncate">{currentSong.artist || 'Desconocido'}</p>
+            </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => dispatch({ type: 'PREV_SONG' })}
-              className="text-spotify-light-gray hover:text-white transition-colors p-2"
-            >
-              <SkipBack className="w-5 h-5 fill-current" />
-            </button>
-
-            {!isSpotify && (
+            {/* Controls */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
               <button
-                onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
-                className="w-9 h-9 bg-white rounded-full flex items-center justify-center active:scale-95 transition-transform"
+                onClick={() => dispatch({ type: 'PREV_SONG' })}
+                className="text-spotify-light-gray active:text-white transition-colors p-2"
               >
-                {isPlaying
-                  ? <Pause className="w-5 h-5 text-black fill-current" />
-                  : <Play className="w-5 h-5 text-black fill-current ml-0.5" />}
+                <SkipBack className="w-5 h-5 fill-current" />
               </button>
-            )}
 
-            <button
-              onClick={() => dispatch({ type: 'NEXT_SONG' })}
-              className="text-spotify-light-gray hover:text-white transition-colors p-2"
-            >
-              <SkipForward className="w-5 h-5 fill-current" />
-            </button>
+              {!isSpotify && (
+                <button
+                  onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
+                  className="w-10 h-10 bg-white rounded-full flex items-center justify-center active:scale-95 transition-transform mx-1"
+                >
+                  {isPlaying
+                    ? <Pause className="w-5 h-5 text-black fill-current" />
+                    : <Play className="w-5 h-5 text-black fill-current ml-0.5" />}
+                </button>
+              )}
+
+              <button
+                onClick={() => dispatch({ type: 'NEXT_SONG' })}
+                className="text-spotify-light-gray active:text-white transition-colors p-2"
+              >
+                <SkipForward className="w-5 h-5 fill-current" />
+              </button>
+            </div>
           </div>
+
+          {/* Row 2: Seek bar + times */}
+          {!isSpotify && (
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-[10px] text-spotify-light-gray w-7 text-right flex-shrink-0">{formatTime(currentTime)}</span>
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={handleSeek}
+                step={0.1}
+                className="flex-1 h-1 accent-spotify-green"
+                style={{ background: `linear-gradient(to right, #1DB954 ${progress}%, #535353 0%)` }}
+              />
+              <span className="text-[10px] text-spotify-light-gray w-7 flex-shrink-0">{formatTime(duration)}</span>
+            </div>
+          )}
         </div>
 
         {/* ── Desktop layout ── */}

@@ -31,7 +31,8 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto">
+    <div className="space-y-6 pb-4">
       <h1 className="text-2xl font-bold text-white">Buscar</h1>
 
       <form onSubmit={handleSearch} className="relative max-w-xl">
@@ -79,6 +80,7 @@ export default function SearchPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   )
 }

@@ -67,7 +67,7 @@ function DashboardContent() {
   return (
     <div className="flex flex-col md:flex-row gap-3 md:gap-5 h-full min-h-0">
       {/* Left column: song list */}
-      <div className="w-full md:w-72 flex-shrink-0 flex flex-col min-h-0">
+      <div className="flex-1 md:flex-none md:w-72 md:flex-shrink-0 flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-3 flex-shrink-0">
           {activeLabel && (
             <span style={{ color: activeLabel.color }}><Tag className="w-4 h-4" /></span>

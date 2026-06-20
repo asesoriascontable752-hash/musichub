@@ -51,7 +51,8 @@ export default function LibraryPage() {
   const filtered = filter === 'all' ? unlabeled : unlabeled.filter(s => s.sourceType === filter)
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto">
+    <div className="space-y-6 pb-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Tu biblioteca</h1>
         <span className="text-spotify-light-gray text-sm">{unlabeled.length} sin clasificar · {songs.length} total</span>
@@ -109,6 +110,7 @@ export default function LibraryPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   )
 }
