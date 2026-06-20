@@ -14,6 +14,7 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [artist, setArtist] = useState('')
+  const [spotifyPreviewUrl, setSpotifyPreviewUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [fetchingInfo, setFetchingInfo] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +63,7 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
       const data = await res.json()
       if (data.title) setTitle(data.title)
       if (data.artist) setArtist(data.artist)
+      setSpotifyPreviewUrl(data.previewUrl || null)
     } catch {}
     setFetchingInfo(false)
   }
@@ -86,17 +88,31 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
       if (idMatch) coverUrl = `https://img.youtube.com/vi/${idMatch[1]}/hqdefault.jpg`
     } else if (isSpotify) {
       sourceType = 'spotify'
-      try {
-        const res = await fetch(`/api/spotify-info?url=${encodeURIComponent(url)}`)
-        const data = await res.json()
-        if (data.coverUrl) coverUrl = data.coverUrl
-      } catch {}
+      // If we don't yet have a previewUrl, try fetching it now
+      let previewUrl = spotifyPreviewUrl
+      if (!previewUrl) {
+        try {
+          const res = await fetch(`/api/spotify-info?url=${encodeURIComponent(url)}`)
+          const data = await res.json()
+          if (data.coverUrl) coverUrl = data.coverUrl
+          previewUrl = data.previewUrl || null
+          setSpotifyPreviewUrl(previewUrl)
+        } catch {}
+      }
     }
 
     const res = await fetch('/api/songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, artist: artist || undefined, sourceType, sourceUrl: url, coverUrl }),
+      body: JSON.stringify({
+        title,
+        artist: artist || undefined,
+        sourceType,
+        sourceUrl: url,
+        coverUrl,
+        // For Spotify: store preview URL in filePath so the player can use it directly
+        filePath: isSpotify ? (spotifyPreviewUrl || null) : undefined,
+      }),
     })
 
     const data = await res.json()
@@ -263,7 +279,8 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                     </button>
                   )}
                 </div>
-                {isSpotify && <p className="text-xs text-spotify-green mt-1">✓ Spotify — se integrará el reproductor oficial</p>}
+                {isSpotify && spotifyPreviewUrl && <p className="text-xs text-spotify-green mt-1">✓ Vista previa de 30 seg disponible — se reproducirá directamente</p>}
+                {isSpotify && !spotifyPreviewUrl && !fetchingInfo && <p className="text-xs text-spotify-light-gray mt-1">Spotify — sin vista previa disponible, se mostrará botón para abrir en app</p>}
                 {!isYouTube && !isSpotify && <p className="text-xs text-spotify-light-gray mt-1">YouTube, Spotify u otras URLs</p>}
               </div>
 

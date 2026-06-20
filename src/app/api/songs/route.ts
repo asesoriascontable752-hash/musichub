@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const songs = await prisma.song.findMany({
+    where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
   })
 

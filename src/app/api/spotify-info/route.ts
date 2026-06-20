@@ -14,9 +14,48 @@ async function fetchOEmbed(url: string) {
       { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(7000) }
     )
     const data = await res.json()
-    return { title: data.title || '', coverUrl: data.thumbnail_url || null }
+    return {
+      title: data.title || '',
+      artist: data.author_name || '',
+      coverUrl: data.thumbnail_url || null,
+    }
   } catch {}
   return null
+}
+
+async function getSpotifyToken(): Promise<string | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+  try {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+      },
+      body: 'grant_type=client_credentials',
+      signal: AbortSignal.timeout(6000),
+    })
+    const data = await res.json()
+    return data.access_token || null
+  } catch { return null }
+}
+
+async function getTrackData(trackId: string, token: string) {
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(6000),
+    })
+    const data = await res.json()
+    return {
+      title: data.name || '',
+      artist: data.artists?.map((a: any) => a.name).join(', ') || '',
+      coverUrl: data.album?.images?.[0]?.url || null,
+      previewUrl: data.preview_url || null,
+    }
+  } catch { return null }
 }
 
 export async function GET(req: NextRequest) {
@@ -29,14 +68,31 @@ export async function GET(req: NextRequest) {
   const info = extractSpotifyInfo(url)
   if (!info) return NextResponse.json({ error: 'URL de Spotify inválida' }, { status: 400 })
 
-  const embedUrl = `https://open.spotify.com/embed/${info.type}/${info.id}?utm_source=generator&theme=0`
+  // Try Spotify API first (needs SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET)
+  if (info.type === 'track') {
+    const token = await getSpotifyToken()
+    if (token) {
+      const track = await getTrackData(info.id, token)
+      if (track) {
+        return NextResponse.json({
+          title: track.title,
+          artist: track.artist,
+          coverUrl: track.coverUrl,
+          previewUrl: track.previewUrl,
+          type: info.type,
+          id: info.id,
+        })
+      }
+    }
+  }
 
+  // Fallback: oEmbed (no credentials needed)
   const oembed = await fetchOEmbed(url)
   return NextResponse.json({
     title: oembed?.title || '',
-    artist: '',
+    artist: oembed?.artist || '',
     coverUrl: oembed?.coverUrl || null,
-    embedUrl,
+    previewUrl: null,
     type: info.type,
     id: info.id,
   })
