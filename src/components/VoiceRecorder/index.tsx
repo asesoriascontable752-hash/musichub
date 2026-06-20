@@ -20,10 +20,22 @@ function formatTime(s: number) {
 
 function getBestMimeType(): string {
   if (typeof MediaRecorder === 'undefined') return ''
+  // Prefer opus at high bitrate, then mp4/aac, then plain webm
   return (
     ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
       .find(t => MediaRecorder.isTypeSupported(t)) ?? ''
   )
+}
+
+const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  // Disable voice-call processing — ruins music/singing quality
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+  // High quality audio
+  sampleRate: { ideal: 48000 },
+  sampleSize: { ideal: 16 },
+  channelCount: { ideal: 1 },
 }
 
 export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderProps) {
@@ -60,10 +72,13 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
       return
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS })
       streamRef.current = stream
       const mimeType = getBestMimeType()
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 128_000,
+      })
       recorderRef.current = recorder
       chunksRef.current = []
 
