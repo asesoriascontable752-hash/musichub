@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, Link2, Upload, Youtube, Music, FileVideo, Loader2, Search, Lock, FolderOpen, CheckCircle2 } from 'lucide-react'
+import { X, Link2, Upload, Youtube, Music, FileVideo, Loader2, Search, Lock, FolderOpen, CheckCircle2, Mic } from 'lucide-react'
 import { Song } from '@/types'
+import VoiceRecorder from '@/components/VoiceRecorder'
 
-type Tab = 'url' | 'upload'
+type Tab = 'url' | 'upload' | 'record'
 
 interface Perms { canAddSongs: boolean; canUpload: boolean }
 interface AddSongModalProps { onClose: () => void; onAdded: (song: Song) => void }
@@ -211,7 +212,8 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
 
   const noPerm = perms !== null && (
     (tab === 'url' && !perms.canAddSongs) ||
-    (tab === 'upload' && (!perms.canUpload || !perms.canAddSongs))
+    (tab === 'upload' && (!perms.canUpload || !perms.canAddSongs)) ||
+    (tab === 'record' && (!perms.canUpload || !perms.canAddSongs))
   )
 
   return (
@@ -226,9 +228,10 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 gap-2 mb-6">
+        <div className="flex px-6 gap-2 mb-6 overflow-x-auto">
           <TabBtn active={tab === 'url'} onClick={() => setTab('url')} icon={<Link2 className="w-4 h-4" />} label="URL / Link" />
-          <TabBtn active={tab === 'upload'} onClick={() => setTab('upload')} icon={<Upload className="w-4 h-4" />} label="Archivo local" />
+          <TabBtn active={tab === 'upload'} onClick={() => setTab('upload')} icon={<Upload className="w-4 h-4" />} label="Archivo" />
+          <TabBtn active={tab === 'record'} onClick={() => setTab('record')} icon={<Mic className="w-4 h-4" />} label="Grabar" />
         </div>
 
         <div className="px-6 pb-6 space-y-4">
@@ -285,6 +288,10 @@ export default function AddSongModal({ onClose, onAdded }: AddSongModalProps) {
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agregar'}
               </button>
             </form>
+          )}
+
+          {tab === 'record' && !noPerm && (
+            <VoiceRecorder onSaved={onClose} />
           )}
 
           {tab === 'upload' && !noPerm && (
