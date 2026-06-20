@@ -15,13 +15,26 @@ const songSchema = z.object({
   sourceUrl: z.string().optional().nullable(),
   filePath: z.string().optional().nullable(),
   lyrics: z.string().optional().nullable(),
+  isPublic: z.boolean().optional(),
 })
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  const view = req.nextUrl.searchParams.get('view')
+
+  if (view === 'shared') {
+    const songs = await prisma.song.findMany({
+      where: { isPublic: true, NOT: { userId: session.user.id } },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+    return NextResponse.json({ songs })
+  }
+
   const songs = await prisma.song.findMany({
+    where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
   })
 

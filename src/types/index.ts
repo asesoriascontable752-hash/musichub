@@ -9,8 +9,10 @@ export interface Song {
   sourceUrl?: string | null
   filePath?: string | null
   lyrics?: string | null
+  isPublic?: boolean
   createdAt: string
   userId: string
+  user?: { name?: string | null; email?: string | null }
 }
 
 export interface Playlist {

@@ -6,8 +6,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import {
   Music2, Home, Search, Library, LogOut, Plus, User,
-  Settings, Heart, Tag, Mic, Star, Bookmark, Trash2, Edit2, Check, X
+  Settings, Heart, Tag, Mic, Star, Bookmark, Trash2, Edit2, Check, X, Users
 } from 'lucide-react'
+import VoiceRecorder from '@/components/VoiceRecorder'
+import { usePlayer } from '@/contexts/PlayerContext'
 
 interface Label {
   id: string
@@ -35,13 +37,16 @@ export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarP
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
+  const { state: playerState } = usePlayer()
   const isAdmin = (session?.user as any)?.role === 'admin'
+  const currentSong = playerState.currentSong
 
   const [labels, setLabels] = useState<Label[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [showRecorder, setShowRecorder] = useState(false)
 
   useEffect(() => {
     fetch('/api/labels').then(r => r.json()).then(d => setLabels(d.labels || []))
@@ -98,6 +103,7 @@ export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarP
     : null
 
   return (
+    <>
     <aside className={`
       w-64 bg-spotify-black flex flex-col flex-shrink-0
       fixed md:static inset-y-0 left-0 z-50 h-full
@@ -126,6 +132,7 @@ export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarP
         <NavItem href="/dashboard" icon={<Home className="w-5 h-5" />} label="Inicio" active={pathname === '/dashboard' && !activeLabelId} onClick={onClose} />
         <NavItem href="/dashboard/search" icon={<Search className="w-5 h-5" />} label="Buscar" active={pathname === '/dashboard/search'} onClick={onClose} />
         <NavItem href="/dashboard/library" icon={<Library className="w-5 h-5" />} label="Tu biblioteca" active={pathname === '/dashboard/library'} onClick={onClose} />
+        <NavItem href="/dashboard/shared" icon={<Users className="w-5 h-5" />} label="Compartidas" active={pathname === '/dashboard/shared'} onClick={onClose} />
         {isAdmin && (
           <NavItem href="/dashboard/admin" icon={<Settings className="w-5 h-5" />} label="Admin IA" active={pathname === '/dashboard/admin'} highlight onClick={onClose} />
         )}
@@ -201,14 +208,25 @@ export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarP
 
         <div className="h-2" />
 
-        {/* Add music button */}
-        <button onClick={onAddSong}
-          className="w-full text-left px-3 py-2.5 rounded-md text-spotify-light-gray hover:text-white hover:bg-white/5 transition-colors text-sm flex items-center gap-3 border-t border-white/5 mt-2 pt-3">
-          <div className="w-8 h-8 bg-spotify-gray rounded-sm flex items-center justify-center flex-shrink-0">
-            <Plus className="w-4 h-4" />
-          </div>
-          Agregar música
-        </button>
+        <div className="border-t border-white/5 mt-2 pt-3 space-y-0.5">
+          {/* Add music button */}
+          <button onClick={onAddSong}
+            className="w-full text-left px-3 py-2.5 rounded-md text-spotify-light-gray hover:text-white hover:bg-white/5 transition-colors text-sm flex items-center gap-3">
+            <div className="w-8 h-8 bg-spotify-gray rounded-sm flex items-center justify-center flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </div>
+            Agregar música
+          </button>
+
+          {/* Voice recorder button */}
+          <button onClick={() => { setShowRecorder(true); onClose?.() }}
+            className="w-full text-left px-3 py-2.5 rounded-md text-spotify-light-gray hover:text-white hover:bg-white/5 transition-colors text-sm flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-500/20 rounded-sm flex items-center justify-center flex-shrink-0">
+              <Mic className="w-4 h-4 text-red-400" />
+            </div>
+            Grabar audio
+          </button>
+        </div>
       </div>
 
       {/* User */}
@@ -228,6 +246,30 @@ export default function Sidebar({ onAddSong, isOpen = false, onClose }: SidebarP
         </div>
       </div>
     </aside>
+
+    {/* Voice recorder modal */}
+    {showRecorder && (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div className={`bg-spotify-dark rounded-2xl w-full shadow-2xl border border-white/10 overflow-hidden ${currentSong?.lyrics ? 'max-w-3xl' : 'max-w-sm'}`}>
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <Mic className="w-5 h-5 text-red-400" />
+              <h2 className="text-base font-bold text-white">Grabar audio</h2>
+              {currentSong?.lyrics && (
+                <span className="text-xs text-spotify-green/70 ml-1">· leyendo: {currentSong.title}</span>
+              )}
+            </div>
+            <button onClick={() => setShowRecorder(false)} className="text-spotify-light-gray hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="px-6 pb-6 pt-4 max-h-[85vh] overflow-y-auto">
+            <VoiceRecorder onSaved={() => setShowRecorder(false)} currentSong={currentSong} />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check } from 'lucide-react'
+import { Play, Pause, Trash2, Youtube, Music, FileAudio, Link2, Tag, Check, Edit2, X, Globe, Lock } from 'lucide-react'
 import { Song } from '@/types'
 import { usePlayer } from '@/contexts/PlayerContext'
 import { useSession } from 'next-auth/react'
@@ -32,13 +32,15 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
   const isPlaying = isCurrentSong && state.isPlaying
   const [showLabels, setShowLabels] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
 
   const isOwner = song.userId === session?.user?.id
   const isAdmin = (session?.user as any)?.role === 'admin'
   const canDelete = isOwner || isAdmin
+  const [isPublic, setIsPublic] = useState(!!(song as any).isPublic)
 
-  // Close label menu on outside click
   useEffect(() => {
     if (!showLabels) return
     function close(e: MouseEvent) {
@@ -59,6 +61,28 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
     setSaving(null)
     onLabelChange?.()
     window.dispatchEvent(new CustomEvent('label-changed'))
+  }
+
+  async function saveTitle() {
+    if (!titleDraft.trim() || titleDraft === song.title) { setEditingTitle(false); return }
+    await fetch(`/api/songs/${song.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: titleDraft.trim() }),
+    })
+    song.title = titleDraft.trim()
+    setEditingTitle(false)
+  }
+
+  async function togglePublic(e: React.MouseEvent) {
+    e.stopPropagation()
+    const next = !isPublic
+    setIsPublic(next)
+    await fetch(`/api/songs/${song.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPublic: next }),
+    })
   }
 
   async function handleDelete(e: React.MouseEvent) {
@@ -86,19 +110,36 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
             <Music className="w-5 h-5 text-spotify-light-gray" />
           </div>
         )}
-        <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity ${isCurrentSong ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        <div className={`absolute inset-0 bg-black/40 hidden md:flex items-center justify-center transition-opacity ${isCurrentSong ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           {isPlaying ? <Pause className="w-4 h-4 text-white fill-current" /> : <Play className="w-4 h-4 text-white fill-current ml-0.5" />}
         </div>
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+      <div className="flex-1 min-w-0" onClick={e => editingTitle && e.stopPropagation()}>
+        {editingTitle ? (
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
+              onBlur={saveTitle}
+              className="flex-1 min-w-0 px-2 py-0.5 bg-white/10 text-white text-sm rounded border border-spotify-green focus:outline-none"
+            />
+            <button onMouseDown={e => { e.preventDefault(); saveTitle() }} className="text-spotify-green p-0.5"><Check className="w-3.5 h-3.5" /></button>
+            <button onMouseDown={e => { e.preventDefault(); setEditingTitle(false) }} className="text-white/30 p-0.5"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ) : (
+          <p className={`text-sm font-medium truncate ${isCurrentSong ? 'text-spotify-green' : 'text-white'}`}>{song.title}</p>
+        )}
         <div className="flex items-center gap-1.5">
           {SOURCE_ICONS[song.sourceType]}
           <p className="text-xs text-spotify-light-gray truncate">{song.artist || 'Artista desconocido'} · {SOURCE_LABELS[song.sourceType]}</p>
         </div>
-        {/* Label chips */}
+        {!isOwner && song.user?.name && (
+          <p className="text-[10px] text-white/30 truncate">Compartida por {song.user.name}</p>
+        )}
         {songLabels.length > 0 && (
           <div className="flex gap-1 mt-0.5 flex-wrap">
             {songLabels.map(l => (
@@ -110,8 +151,30 @@ export default function SongCard({ song, songs, labels = [], onDelete, onLabelCh
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Actions — always visible on mobile, hover on desktop */}
+      <div className="flex items-center gap-1.5 flex-shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+        {/* Public/private toggle */}
+        {isOwner && !editingTitle && (
+          <button
+            onClick={togglePublic}
+            className={`p-1.5 transition-colors rounded ${isPublic ? 'text-spotify-green hover:text-white' : 'text-spotify-light-gray hover:text-white'}`}
+            title={isPublic ? 'Pública · toca para hacer privada' : 'Privada · toca para compartir'}
+          >
+            {isPublic ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+          </button>
+        )}
+
+        {/* Rename button */}
+        {(isOwner || isAdmin) && !editingTitle && (
+          <button
+            onClick={e => { e.stopPropagation(); setTitleDraft(song.title); setEditingTitle(true) }}
+            className="p-1.5 text-spotify-light-gray hover:text-white transition-colors rounded"
+            title="Renombrar"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         {/* Label button */}
         {labels.length > 0 && (
           <div className="relative" ref={menuRef}>
