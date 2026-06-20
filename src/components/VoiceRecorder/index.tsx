@@ -62,7 +62,6 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
-
       const mimeType = getBestMimeType()
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       recorderRef.current = recorder
@@ -105,7 +104,6 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
     if (audioUrl) URL.revokeObjectURL(audioUrl)
     setAudioUrl(null)
     blobRef.current = null
-    setName('')
     setSeconds(0)
     setRecState('idle')
     setPlaying(false)
@@ -146,11 +144,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
       })
       if (signRes.ok) {
         const { signedUrl, publicUrl } = await signRes.json()
-        const put = await fetch(signedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': mime },
-          body: file,
-        })
+        const put = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: file })
         if (put.ok) fileUrl = publicUrl
       }
 
@@ -195,12 +189,57 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
 
   const recorderPanel = (
     <div className="space-y-4">
-      {/* Timer + waveform */}
-      <div className="flex flex-col items-center gap-3 py-4">
-        <span className={`text-4xl font-mono font-bold tabular-nums ${recState === 'recording' ? 'text-red-400' : 'text-white'}`}>
+
+      {/* ── Nombre + privacidad — siempre visible ── */}
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-spotify-light-gray uppercase tracking-wider mb-1.5">
+            Nombre de la grabación
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && recState === 'stopped' && save()}
+            placeholder="Ej: Idea melodía, Verso coro..."
+            disabled={recState === 'saving'}
+            className="w-full px-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40 disabled:opacity-50"
+          />
+        </div>
+
+        {/* Privacidad toggle — siempre visible */}
+        <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+          <div>
+            <p className="text-sm font-medium text-white">Privacidad</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              {isPublicRec ? 'Visible para todos los usuarios' : 'Solo tú puedes verla'}
+            </p>
+          </div>
+          <button
+            onClick={() => setIsPublicRec(v => !v)}
+            disabled={recState === 'saving'}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 ${
+              isPublicRec
+                ? 'bg-spotify-green/20 text-spotify-green border border-spotify-green/40'
+                : 'bg-white/10 text-white/60 border border-white/15'
+            }`}
+          >
+            {isPublicRec ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            {isPublicRec ? 'Pública' : 'Privada'}
+          </button>
+        </div>
+      </div>
+
+      <div className="h-px bg-white/10" />
+
+      {/* ── Controles de grabación ── */}
+      <div className="flex flex-col items-center gap-3 py-2">
+        {/* Timer */}
+        <span className={`text-4xl font-mono font-bold tabular-nums ${recState === 'recording' ? 'text-red-400' : 'text-white/60'}`}>
           {formatTime(seconds)}
         </span>
 
+        {/* Waveform */}
         {recState === 'recording' && (
           <div className="flex items-end justify-center gap-1 h-10">
             {WAVE_HEIGHTS.map((h, i) => (
@@ -217,6 +256,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
           </div>
         )}
 
+        {/* Botón grabar / parar */}
         {recState === 'idle' && (
           <button
             onClick={startRecording}
@@ -236,14 +276,15 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
         )}
 
         <p className={`text-sm text-center ${recState === 'recording' ? 'text-red-400 animate-pulse' : 'text-spotify-light-gray'}`}>
-          {recState === 'idle' && 'Toca el micrófono para grabar'}
-          {recState === 'recording' && 'Grabando... toca el cuadrado para detener'}
+          {recState === 'idle' && 'Toca el micrófono para comenzar'}
+          {recState === 'recording' && 'Grabando · toca el cuadrado para detener'}
         </p>
       </div>
 
-      {/* Preview + guardar */}
+      {/* ── Preview + guardar (después de parar) ── */}
       {(recState === 'stopped' || recState === 'saving') && audioUrl && (
-        <div className="space-y-4 border-t border-white/10 pt-4">
+        <div className="space-y-3 border-t border-white/10 pt-4">
+          {/* Player de preview */}
           <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
             <button
               onClick={togglePlay}
@@ -253,51 +294,12 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
                 ? <Pause className="w-5 h-5 text-black fill-current" />
                 : <Play className="w-5 h-5 text-black fill-current ml-0.5" />}
             </button>
-            <div className="min-w-0">
-              <p className="text-white text-sm font-medium">Vista previa</p>
-              <p className="text-spotify-light-gray text-xs">{formatTime(seconds)}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-medium truncate">{name || 'Sin nombre'}</p>
+              <p className="text-spotify-light-gray text-xs">{formatTime(seconds)} · Grabaciones</p>
             </div>
             <audio ref={audioRef} src={audioUrl} onEnded={() => setPlaying(false)} className="hidden" />
           </div>
-
-          <div>
-            <label className="block text-sm text-spotify-light-gray mb-1.5">Nombre de la grabación *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && save()}
-              placeholder="Ej: Idea melodía, Reunión martes..."
-              autoFocus
-              className="w-full px-3 py-2.5 bg-spotify-gray text-white rounded-lg border border-white/10 focus:border-spotify-green focus:outline-none text-sm placeholder-spotify-light-gray/40"
-            />
-          </div>
-
-          {/* Privacidad */}
-          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-            <div>
-              <p className="text-sm text-white font-medium">Privacidad</p>
-              <p className="text-xs text-white/40">
-                {isPublicRec ? 'Todos los usuarios la pueden ver' : 'Solo tú puedes verla'}
-              </p>
-            </div>
-            <button
-              onClick={() => setIsPublicRec(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 ${
-                isPublicRec
-                  ? 'bg-spotify-green/20 text-spotify-green border border-spotify-green/30'
-                  : 'bg-white/10 text-white/50 border border-white/10'
-              }`}
-            >
-              {isPublicRec ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              {isPublicRec ? 'Pública' : 'Privada'}
-            </button>
-          </div>
-
-          <p className="text-xs text-white/40 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-            Se guardará en la carpeta <strong className="text-white/70">Grabaciones</strong>
-          </p>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -308,7 +310,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
               className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-spotify-light-gray hover:text-white transition-colors disabled:opacity-40"
             >
               <Trash2 className="w-4 h-4" />
-              Descartar
+              Grabar otra vez
             </button>
             <button
               onClick={save}
@@ -317,7 +319,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
             >
               {recState === 'saving'
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
-                : <><Save className="w-4 h-4" /> Guardar en Grabaciones</>}
+                : <><Save className="w-4 h-4" /> Guardar</>}
             </button>
           </div>
         </div>
@@ -341,9 +343,7 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
             <Music className="w-4 h-4 text-spotify-green" />
             <div className="text-left">
               <p className="text-white text-sm font-medium truncate max-w-[200px]">{currentSong!.title}</p>
-              {currentSong!.artist && (
-                <p className="text-spotify-light-gray text-xs">{currentSong!.artist}</p>
-              )}
+              {currentSong!.artist && <p className="text-spotify-light-gray text-xs">{currentSong!.artist}</p>}
             </div>
           </div>
           <span className="text-white/40 group-hover:text-white transition-colors flex-shrink-0 ml-2">
@@ -352,13 +352,12 @@ export default function VoiceRecorder({ onSaved, currentSong }: VoiceRecorderPro
         </button>
 
         {lyricsExpanded && (
-          <div className="h-56 md:h-[22rem] overflow-y-auto bg-white/5 rounded-xl p-4 scrollbar-thin">
+          <div className="h-56 md:h-[22rem] overflow-y-auto bg-white/5 rounded-xl p-4">
             <pre className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap font-sans">
               {currentSong!.lyrics}
             </pre>
           </div>
         )}
-
         {!lyricsExpanded && (
           <p className="text-xs text-white/30 italic">Toca para ver la letra</p>
         )}
